@@ -118,29 +118,33 @@
   .gif-empty code{background:var(--panel-2); padding:2px 6px; border-radius:5px; color:var(--orange-bright);}
   .timeline-section{margin:34px 0 28px;}
   .tl2-wrap{border:1px solid var(--border); border-radius:12px; background:var(--panel); overflow:hidden;}
-  .tl2{display:grid; grid-template-columns:170px minmax(0,1fr);}
+  .tl2{display:grid; grid-template-columns:172px minmax(0,1fr);}
   .tl2-names{border-right:1px solid var(--border); background:var(--panel-2);}
-  .tl2-corner{height:26px; border-bottom:1px solid var(--border);}
-  .tl2-name{height:26px; display:flex; align-items:center; padding:0 12px; font-size:12.5px; font-weight:600; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-bottom:1px solid rgba(255,255,255,.04); cursor:pointer;}
-  .tl2-name:hover{color:var(--text);}
-  .tl2-name.active{color:#fff; background:linear-gradient(90deg,rgba(224,128,48,.28),transparent);}
+  .tl2-corner{border-bottom:1px solid var(--border);}
+  .tl2-name{display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-bottom:1px solid rgba(255,255,255,.05); cursor:pointer;}
+  .tl2-name:hover{filter:brightness(1.3);}
+  .tl2-name.active{color:#fff !important; background:linear-gradient(90deg,rgba(224,128,48,.32),transparent);}
   .tl2-track{overflow-x:auto;}
   .tl2-track::-webkit-scrollbar{height:9px;} .tl2-track::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:5px;}
   .tl2-track-inner{position:relative;}
   .tl2-bg{position:absolute; inset:0; z-index:0;}
-  .tl2-grid{position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.05);}
-  .tl2-phase{position:absolute; top:0; bottom:0; width:2px; background:rgba(224,128,48,.55);}
-  .tl2-phaselabel{position:absolute; top:6px; font-family:var(--display); font-size:9.5px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:var(--orange-bright); padding-left:6px; white-space:nowrap; z-index:2;}
-  .tl2-ruler{position:relative; height:26px; border-bottom:1px solid var(--border); z-index:1;}
-  .tl2-ticklabel{position:absolute; top:7px; font-size:10px; color:var(--muted-2); transform:translateX(-50%); font-variant-numeric:tabular-nums;}
-  .tl2-row{position:relative; height:26px; border-bottom:1px solid rgba(255,255,255,.04); z-index:1;}
-  .tl2-mark{position:absolute; top:4px; height:18px; display:flex; align-items:center; gap:4px; background:none; border:none; cursor:pointer; padding:0 2px;}
-  .tl2-mark .bar{width:4px; height:16px; border-radius:2px; background:var(--muted); flex:none;}
-  .tl2-mark .lbl{font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
-  .tl2-mark:hover .bar{background:var(--orange-bright);} .tl2-mark:hover .lbl{color:var(--text);}
-  .tl2-mark.active .bar{background:var(--grad); box-shadow:0 0 10px rgba(224,128,48,.7);}
+  .tl2-grid{position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.045);}
+  .tl2-phase{position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.16);}
+  .tl2-phasebar{position:relative; z-index:1; border-bottom:1px solid var(--border); background:var(--panel-2);}
+  .tl2-phaseband{position:absolute; top:0; bottom:0; display:flex; align-items:center; justify-content:center; border-left:2px solid rgba(255,255,255,.2); background:linear-gradient(180deg,rgba(224,128,48,.10),transparent);}
+  .tl2-phaseband span{font-family:var(--display); font-size:10px; font-weight:600; letter-spacing:.6px; text-transform:uppercase; color:var(--text); opacity:.9; padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tl2-row{position:relative; z-index:1; border-bottom:1px solid rgba(255,255,255,.05);}
+  .tl2-row:nth-child(odd){background:rgba(255,255,255,.015);}
+  .tl2-mark{position:absolute; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; padding:0; height:20px;}
+  .tl2-mark .bar{height:15px; min-width:5px; border-radius:4px; background:color-mix(in srgb, var(--c) 32%, transparent); border-left:3px solid var(--c);}
+  .tl2-mark .lbl{font-size:11px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); white-space:nowrap;}
+  .tl2-mark:hover .bar{filter:brightness(1.25);} .tl2-mark:hover .lbl{color:var(--text);}
+  .tl2-mark.active .bar{background:color-mix(in srgb, var(--c) 60%, transparent); border-left-color:#fff; box-shadow:0 0 12px var(--c);}
   .tl2-mark.active .lbl{color:#fff; font-weight:700;}
+  .tl2-axis{position:relative; z-index:1; border-top:1px solid var(--border); background:var(--panel-2);}
+  .tl2-ticklabel{position:absolute; top:7px; font-size:10.5px; color:var(--muted); transform:translateX(-50%); font-variant-numeric:tabular-nums;}
   .tl2-empty{padding:22px; color:var(--muted-2); font-size:13px; text-align:center;}
+  .ph-row{display:flex; gap:6px; margin-bottom:6px;} .ph-name{flex:1;} .ph-time{width:82px;}
   .section-title{font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:1.5px; color:var(--muted); margin-bottom:18px; text-transform:uppercase;}
   .timeline{display:flex; gap:0; overflow-x:auto; padding:6px 2px 20px;}
   .timeline::-webkit-scrollbar{height:8px;}
@@ -624,36 +628,49 @@ function onNavDrop(targetRaidId,targetBossId){
   }
   dragItem=null; persist(); renderSideNav();
 }
+const LANE_COLORS=["#f2933f","#a06bff","#4c8dff","#35c47a","#ff5a6a","#e8c04a","#c07bff","#38d6ff","#ff8ac2","#8ee04a"];
+function laneColor(i){ return LANE_COLORS[i%LANE_COLORS.length]; }
 function renderTimeline(boss){
   const abilities=boss?boss.abilities||[]:[];
   if(!abilities.length) return '<div class="tl2-empty">No abilities yet \u2014 add some in the editor.</div>';
-  const PPS=8;                        // pixels per second
-  let maxT=0; abilities.forEach(ab=>abilityTimes(ab).forEach(t=>{ if(t>maxT) maxT=t; }));
-  const trackW=Math.max(560, Math.ceil(maxT*PPS)+80);
-  // background gridlines + ruler labels every 30s
-  let grid="", ticks="";
-  for(let s=0;s<=maxT+30;s+=30){ const x=s*PPS; grid+='<div class="tl2-grid" style="left:'+x+'px"></div>'; ticks+='<div class="tl2-ticklabel" style="left:'+x+'px">'+fmtTime(s)+'</div>'; }
-  // phase dividers at the first time each distinct phase appears
-  const first={}, order=[];
-  abilities.forEach(ab=>{ if(ab.phase){ const t0=Math.min.apply(null,abilityTimes(ab)); if(first[ab.phase]==null){ first[ab.phase]=t0; order.push(ab.phase); } else if(t0<first[ab.phase]) first[ab.phase]=t0; } });
-  order.sort((a,b)=>first[a]-first[b]);
-  let phases="";
-  order.forEach(ph=>{ const x=first[ph]*PPS; phases+='<div class="tl2-phase" style="left:'+x+'px"></div><div class="tl2-phaselabel" style="left:'+x+'px">'+escapeHtml(ph)+'</div>'; });
-  // names column + marker rows
-  let names='<div class="tl2-corner"></div>', rows="";
+  const PPS=8, ROWH=30, AX=26;
+  let maxT=0;
+  abilities.forEach(ab=>{ const d=Number(ab.duration)||0; abilityTimes(ab).forEach(t=>{ if(t+d>maxT) maxT=t+d; }); });
+  (boss.phases||[]).forEach(p=>{ if((p.time||0)>maxT) maxT=p.time||0; });
+  const spanT=maxT+30;
+  const trackW=Math.max(560, Math.ceil(spanT*PPS)+40);
+  // sorted phases -> header bands + divider lines
+  const phs=(boss.phases||[]).filter(p=>p&&(p.name||p.time!=null)).slice().sort((a,b)=>(a.time||0)-(b.time||0));
+  const PH = phs.length ? 28 : 6;
+  let bands="", plines="";
+  phs.forEach((p,i)=>{ const x=(p.time||0)*PPS; const xEnd=(i<phs.length-1?(phs[i+1].time||0):spanT)*PPS;
+    bands+='<div class="tl2-phaseband" style="left:'+x+'px;width:'+Math.max(0,xEnd-x)+'px"><span>'+escapeHtml(p.name||"")+'</span></div>';
+    if((p.time||0)>0) plines+='<div class="tl2-phase" style="left:'+x+'px"></div>';
+  });
+  // gridlines + bottom axis labels every 30s
+  let grid="", axis="";
+  for(let s=0;s<=spanT;s+=30){ const x=s*PPS; grid+='<div class="tl2-grid" style="left:'+x+'px"></div>'; axis+='<div class="tl2-ticklabel" style="left:'+x+'px">'+fmtTime(s)+'</div>'; }
+  // names + rows with duration bars
+  let names='<div class="tl2-corner" style="height:'+PH+'px"></div>', rows="";
   abilities.forEach((ab,ai)=>{
-    names+='<div class="tl2-name'+(ai===state.abilityIndex?" active":"")+'" data-ai="'+ai+'" title="'+escapeHtml(ab.name||"")+'">'+escapeHtml(ab.name||"(unnamed)")+'</div>';
+    const col=laneColor(ai), d=Number(ab.duration)||0;
+    const nameStyle='height:'+ROWH+'px'+(ai===state.abilityIndex?'':';color:'+col);
+    names+='<div class="tl2-name'+(ai===state.abilityIndex?" active":"")+'" data-ai="'+ai+'" style="'+nameStyle+'" title="'+escapeHtml(ab.name||"")+'">'+escapeHtml(ab.name||"(unnamed)")+'</div>';
     let marks="";
     abilityTimes(ab).forEach(t=>{
       const isA=(ai===state.abilityIndex && t===state.occTime);
-      marks+='<button class="tl2-mark'+(isA?" active":"")+'" data-ai="'+ai+'" data-t="'+t+'" style="left:'+(t*PPS)+'px" title="'+escapeHtml(ab.name||"")+' \u00b7 '+fmtTime(t)+(ab.phase?" \u00b7 "+escapeHtml(ab.phase):"")+'"><span class="bar"></span><span class="lbl">'+fmtTime(t)+'</span></button>';
+      const w=Math.max(5, d*PPS);
+      marks+='<button class="tl2-mark'+(isA?" active":"")+'" data-ai="'+ai+'" data-t="'+t+'" style="left:'+(t*PPS)+'px" title="'+escapeHtml(ab.name||"")+' \u00b7 '+fmtTime(t)+(d?' \u00b7 '+d+'s':'')+'"><span class="bar" style="width:'+w+'px;--c:'+col+'"></span><span class="lbl">'+fmtTime(t)+'</span></button>';
     });
-    rows+='<div class="tl2-row">'+marks+'</div>';
+    rows+='<div class="tl2-row" style="height:'+ROWH+'px">'+marks+'</div>';
   });
-  return '<div class="tl2-wrap"><div class="tl2"><div class="tl2-names">'+names+'</div>'+
+  return '<div class="tl2-wrap"><div class="tl2">'+
+    '<div class="tl2-names">'+names+'<div class="tl2-corner" style="height:'+AX+'px;border-bottom:0"></div></div>'+
     '<div class="tl2-track"><div class="tl2-track-inner" style="width:'+trackW+'px">'+
-      '<div class="tl2-bg">'+grid+phases+'</div>'+
-      '<div class="tl2-ruler">'+ticks+'</div>'+rows+
+      '<div class="tl2-bg">'+grid+plines+'</div>'+
+      '<div class="tl2-phasebar" style="height:'+PH+'px">'+bands+'</div>'+
+      rows+
+      '<div class="tl2-axis" style="height:'+AX+'px">'+axis+'</div>'+
     '</div></div></div></div>';
 }
 function render(){
@@ -747,10 +764,10 @@ function abilityBlock(a,ai){
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
       field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
-      field("Phase (optional)",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
-      field("Video override URL (optional)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'">')+
+      field("Duration (seconds, optional)",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">')+
+      field("Phase label (optional)",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
     '</div>'+
-    '<div class="det" style="margin:-6px 0 12px" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>'+
+    field("Video override URL (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
     field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
     field("GIF URL (optional)",'<input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'">')+
     '<div class="roles-grid">'+
@@ -776,8 +793,18 @@ function bossEditorHtml(){
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
     field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
     field("Video offset (seconds) \u2014 where the pull happens in the video",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'"><div class="det">If the pull is a few seconds into the video, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.</div>')+
+    field("Phase timings (optional \u2014 shown across the top of the timeline)", phaseListHtml(r,bi,b))+
     '<div class="field"><label>Abilities / timeline (ordered by time)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
     '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
+}
+function phaseListHtml(r,bi,b){
+  const phs=b.phases||[];
+  const rowsH=phs.map((p,pi)=>'<div class="ph-row">'+
+    '<input class="ph-name" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" data-k="phaseName" value="'+escapeHtml(p.name||"")+'" placeholder="Phase name">'+
+    '<input class="ph-time" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" data-k="phaseTime" value="'+secToClock(p.time||0)+'" placeholder="mm:ss">'+
+    '<button class="btn danger ed-x" data-action="delphase" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" title="Remove">\u00d7</button>'+
+    '</div>').join("");
+  return rowsH+'<button class="btn" data-action="addphase" data-r="'+r+'" data-b="'+bi+'" style="font-size:12px;padding:6px 10px">+ Add phase</button>';
 }
 
 function renderEditor(){
@@ -806,6 +833,7 @@ function renderEditor(){
 
 function applyField(obj,k,val,scope){
   if(k==="times"){ obj.times=parseTimes(val); delete obj.time; delete obj.videoStart; }
+  else if(k==="duration"){ const n=parseInt(val,10); if(!n||n<0) delete obj.duration; else obj.duration=n; }
   else if(k==="videoOffset"){ const n=parseInt(val,10); obj.videoOffset=isNaN(n)?0:n; }
   else if(k==="videourl"){
     if(!val.trim()){ if(scope==="ability"){ delete obj.platform; delete obj.videoId; } else { obj.videoId=""; } }
@@ -819,6 +847,12 @@ overlay.addEventListener("input",function(e){
   const t=e.target, k=t.dataset.k; if(k==null) return;
   const r=Number(t.dataset.r);
   if(k==="raidname"){ editData[r].name=t.value; return; }
+  if(k==="phaseName"||k==="phaseTime"){
+    const bb=editData[r].bosses[Number(t.dataset.b)]; bb.phases=bb.phases||[]; const p=Number(t.dataset.p);
+    bb.phases[p]=bb.phases[p]||{name:"",time:0};
+    if(k==="phaseName") bb.phases[p].name=t.value; else bb.phases[p].time=parseTime(t.value);
+    return;
+  }
   if(k==="moveraid"){
     const to=Number(t.value), bi=Number(t.dataset.b);
     if(to!==r && editData[to]){ const [mv]=editData[r].bosses.splice(bi,1); editData[to].bosses.push(mv); editRaidIdx=to; editBossIdx=editData[to].bosses.length-1; renderEditor(); }
@@ -844,6 +878,8 @@ overlay.addEventListener("click",function(e){
   else if(act==="addraid"){ editData.push(blankRaid()); editRaidIdx=editData.length-1; editBossIdx=-1; renderEditor(); }
   else if(act==="delraid"){ const ri=Number(btn.dataset.r); editData.splice(ri,1); if(!editData.length) editData=[blankRaid()]; editRaidIdx=Math.min(editRaidIdx,editData.length-1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
   else if(act==="addabil"){ const b=editData[editRaidIdx].bosses[editBossIdx]; b.abilities=b.abilities||[]; b.abilities.push(blankAbility()); renderEditor(); }
+  else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({name:"New phase", time:0}); renderEditor(); }
+  else if(act==="delphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b), p=Number(btn.dataset.p); editData[ri].bosses[bi].phases.splice(p,1); renderEditor(); }
   else if(act==="delabil"){ editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1); renderEditor(); }
   else if(act==="export"){ exportData(); }
   else if(act==="import"){ importData(); }
