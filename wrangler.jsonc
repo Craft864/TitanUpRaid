@@ -1,5 +1,32 @@
 {
-  "name": "titan-up",
+  // Keep this name EXACTLY as-is so it updates your existing worker.
+  "name": "titanupraid",
+  "main": "src/index.js",
   "compatibility_date": "2026-07-08",
-  "assets": { "directory": "./" }
+
+  // Serve the frontend from ./public, but let the Worker run first so it can gate access.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+
+  // KV storage. Create a namespace in the dashboard, then paste its ID below.
+  "kv_namespaces": [
+    { "binding": "TU_KV", "id": "f7f5714677af4be5a65baad94b7ba364" }
+  ],
+
+  // Non-secret config. Edit EDITOR_BATTLETAGS to your own BattleTag.
+  // ALLOWLIST_NAMES: comma-separated character names OR BattleTags that
+  // should always be let in (e.g. brand-new recruits not on the roster yet).
+  "vars": {
+    "BNET_REGION": "us",
+    "GUILD_REALM_SLUG": "medivh",
+    "GUILD_NAME_SLUG": "titan-up",
+    "EDITOR_BATTLETAGS": "Craft#11663",
+    "ALLOWLIST_NAMES": ""
+  }
+
+  // BNET_CLIENT_ID and BNET_CLIENT_SECRET are NOT here on purpose.
+  // Add them as encrypted Secrets in the Cloudflare dashboard (steps in README-DEPLOY.md).
 }
