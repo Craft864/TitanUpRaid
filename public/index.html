@@ -31,7 +31,7 @@
   }
   a{color:var(--orange-bright); text-decoration:none;}
   header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgba(17,16,25,.88),rgba(12,11,18,.55)); backdrop-filter:blur(14px); border-bottom:1px solid var(--border);}
-  .header-inner{max-width:1200px; margin:0 auto; padding:16px 22px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;}
+  .header-inner{max-width:none; margin:0; padding:16px 24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;}
   .brand{display:flex; align-items:center; gap:13px;}
   .crest{width:40px; height:40px; flex:none; border-radius:11px; display:grid; place-items:center; background:var(--grad); box-shadow:0 6px 20px rgba(145,71,255,.35), inset 0 0 0 1px rgba(255,255,255,.15);}
   .crest svg{width:22px; height:22px;}
@@ -41,8 +41,8 @@
   nav.bosses button{font-family:var(--body); font-size:13.5px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:9px 16px; cursor:pointer; transition:.16s;}
   nav.bosses button:hover{color:var(--text); border-color:var(--border-strong); transform:translateY(-1px);}
   nav.bosses button.active{color:#fff; border-color:transparent; background:var(--grad); box-shadow:0 4px 16px rgba(224,128,48,.3);}
-  main{max-width:1200px; margin:0 auto; padding:30px 22px 90px;}
-  .layout{display:grid; grid-template-columns:250px minmax(0,1fr); gap:28px; align-items:start;}
+  main{max-width:none; margin:0; padding:26px 24px 90px;}
+  .layout{display:grid; grid-template-columns:210px minmax(0,1fr); gap:36px; align-items:start;}
   .content{min-width:0;}
   .sidebar{position:sticky; top:88px; align-self:start; max-height:calc(100vh - 108px); overflow:auto; padding-right:4px;}
   .side-tools{margin-bottom:12px;}
@@ -117,6 +117,30 @@
   .gif-empty{color:var(--muted-2); font-size:13px; padding:22px; text-align:center;}
   .gif-empty code{background:var(--panel-2); padding:2px 6px; border-radius:5px; color:var(--orange-bright);}
   .timeline-section{margin:34px 0 28px;}
+  .tl2-wrap{border:1px solid var(--border); border-radius:12px; background:var(--panel); overflow:hidden;}
+  .tl2{display:grid; grid-template-columns:170px minmax(0,1fr);}
+  .tl2-names{border-right:1px solid var(--border); background:var(--panel-2);}
+  .tl2-corner{height:26px; border-bottom:1px solid var(--border);}
+  .tl2-name{height:26px; display:flex; align-items:center; padding:0 12px; font-size:12.5px; font-weight:600; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-bottom:1px solid rgba(255,255,255,.04); cursor:pointer;}
+  .tl2-name:hover{color:var(--text);}
+  .tl2-name.active{color:#fff; background:linear-gradient(90deg,rgba(224,128,48,.28),transparent);}
+  .tl2-track{overflow-x:auto;}
+  .tl2-track::-webkit-scrollbar{height:9px;} .tl2-track::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:5px;}
+  .tl2-track-inner{position:relative;}
+  .tl2-bg{position:absolute; inset:0; z-index:0;}
+  .tl2-grid{position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.05);}
+  .tl2-phase{position:absolute; top:0; bottom:0; width:2px; background:rgba(224,128,48,.55);}
+  .tl2-phaselabel{position:absolute; top:6px; font-family:var(--display); font-size:9.5px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:var(--orange-bright); padding-left:6px; white-space:nowrap; z-index:2;}
+  .tl2-ruler{position:relative; height:26px; border-bottom:1px solid var(--border); z-index:1;}
+  .tl2-ticklabel{position:absolute; top:7px; font-size:10px; color:var(--muted-2); transform:translateX(-50%); font-variant-numeric:tabular-nums;}
+  .tl2-row{position:relative; height:26px; border-bottom:1px solid rgba(255,255,255,.04); z-index:1;}
+  .tl2-mark{position:absolute; top:4px; height:18px; display:flex; align-items:center; gap:4px; background:none; border:none; cursor:pointer; padding:0 2px;}
+  .tl2-mark .bar{width:4px; height:16px; border-radius:2px; background:var(--muted); flex:none;}
+  .tl2-mark .lbl{font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .tl2-mark:hover .bar{background:var(--orange-bright);} .tl2-mark:hover .lbl{color:var(--text);}
+  .tl2-mark.active .bar{background:var(--grad); box-shadow:0 0 10px rgba(224,128,48,.7);}
+  .tl2-mark.active .lbl{color:#fff; font-weight:700;}
+  .tl2-empty{padding:22px; color:var(--muted-2); font-size:13px; text-align:center;}
   .section-title{font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:1.5px; color:var(--muted); margin-bottom:18px; text-transform:uppercase;}
   .timeline{display:flex; gap:0; overflow-x:auto; padding:6px 2px 20px;}
   .timeline::-webkit-scrollbar{height:8px;}
@@ -255,7 +279,7 @@
   </div>
   <div class="timeline-section">
     <div class="section-title">Ability Timeline</div>
-    <div class="timeline" id="timelineSlot" aria-label="Ability timeline"></div>
+    <div id="timelineSlot" aria-label="Ability timeline"></div>
   </div>
   <div id="infoSlot"></div>
   </div>
@@ -600,6 +624,38 @@ function onNavDrop(targetRaidId,targetBossId){
   }
   dragItem=null; persist(); renderSideNav();
 }
+function renderTimeline(boss){
+  const abilities=boss?boss.abilities||[]:[];
+  if(!abilities.length) return '<div class="tl2-empty">No abilities yet \u2014 add some in the editor.</div>';
+  const PPS=8;                        // pixels per second
+  let maxT=0; abilities.forEach(ab=>abilityTimes(ab).forEach(t=>{ if(t>maxT) maxT=t; }));
+  const trackW=Math.max(560, Math.ceil(maxT*PPS)+80);
+  // background gridlines + ruler labels every 30s
+  let grid="", ticks="";
+  for(let s=0;s<=maxT+30;s+=30){ const x=s*PPS; grid+='<div class="tl2-grid" style="left:'+x+'px"></div>'; ticks+='<div class="tl2-ticklabel" style="left:'+x+'px">'+fmtTime(s)+'</div>'; }
+  // phase dividers at the first time each distinct phase appears
+  const first={}, order=[];
+  abilities.forEach(ab=>{ if(ab.phase){ const t0=Math.min.apply(null,abilityTimes(ab)); if(first[ab.phase]==null){ first[ab.phase]=t0; order.push(ab.phase); } else if(t0<first[ab.phase]) first[ab.phase]=t0; } });
+  order.sort((a,b)=>first[a]-first[b]);
+  let phases="";
+  order.forEach(ph=>{ const x=first[ph]*PPS; phases+='<div class="tl2-phase" style="left:'+x+'px"></div><div class="tl2-phaselabel" style="left:'+x+'px">'+escapeHtml(ph)+'</div>'; });
+  // names column + marker rows
+  let names='<div class="tl2-corner"></div>', rows="";
+  abilities.forEach((ab,ai)=>{
+    names+='<div class="tl2-name'+(ai===state.abilityIndex?" active":"")+'" data-ai="'+ai+'" title="'+escapeHtml(ab.name||"")+'">'+escapeHtml(ab.name||"(unnamed)")+'</div>';
+    let marks="";
+    abilityTimes(ab).forEach(t=>{
+      const isA=(ai===state.abilityIndex && t===state.occTime);
+      marks+='<button class="tl2-mark'+(isA?" active":"")+'" data-ai="'+ai+'" data-t="'+t+'" style="left:'+(t*PPS)+'px" title="'+escapeHtml(ab.name||"")+' \u00b7 '+fmtTime(t)+(ab.phase?" \u00b7 "+escapeHtml(ab.phase):"")+'"><span class="bar"></span><span class="lbl">'+fmtTime(t)+'</span></button>';
+    });
+    rows+='<div class="tl2-row">'+marks+'</div>';
+  });
+  return '<div class="tl2-wrap"><div class="tl2"><div class="tl2-names">'+names+'</div>'+
+    '<div class="tl2-track"><div class="tl2-track-inner" style="width:'+trackW+'px">'+
+      '<div class="tl2-bg">'+grid+phases+'</div>'+
+      '<div class="tl2-ruler">'+ticks+'</div>'+rows+
+    '</div></div></div></div>';
+}
 function render(){
   renderSideNav();
   { const cb=currentBoss(); if(cb) state.bossId=cb.id; }
@@ -627,11 +683,9 @@ function render(){
     ? '<div class="gif-wrap"><img src="'+ability.gif+'" alt="'+escapeHtml(ability.name||"")+' mechanic"></div>'
     : '<div class="gif-wrap"><div class="gif-empty">No GIF set for this ability.<br>Add a <code>gif</code> URL in the editor.</div></div>';
 
-  $("#timelineSlot").innerHTML = nodes.map((n,i)=>{
-    const phase=n.ab.phase?'<span class="tl-phase">'+escapeHtml(n.ab.phase)+'</span>':"";
-    return '<button class="tl-node '+(i===active?"active":"")+'" data-ai="'+n.ai+'" data-t="'+n.t+'"><span class="tl-time">'+fmtTime(n.t)+'</span><span class="tl-dot"></span><span class="tl-label">'+escapeHtml(n.ab.name||"")+'</span>'+phase+'</button>';
-  }).join("");
-  $("#timelineSlot").querySelectorAll(".tl-node").forEach(node=>node.addEventListener("click",()=>{ state.abilityIndex=Number(node.dataset.ai); state.occTime=Number(node.dataset.t); render(); }));
+  $("#timelineSlot").innerHTML = renderTimeline(boss);
+  $("#timelineSlot").querySelectorAll(".tl2-mark").forEach(m=>m.addEventListener("click",()=>{ state.abilityIndex=Number(m.dataset.ai); state.occTime=Number(m.dataset.t); render(); }));
+  $("#timelineSlot").querySelectorAll(".tl2-name").forEach(n=>n.addEventListener("click",()=>{ const ai=Number(n.dataset.ai); const b2=currentBoss(); const ab=b2&&(b2.abilities||[])[ai]; state.abilityIndex=ai; state.occTime=ab?abilityTimes(ab)[0]:null; render(); }));
 
   const info=ability.info||{}; const byKey={};
   ROLE_META.forEach(r=>{ const c=info[r.key]; if(c&&!(Array.isArray(c)&&c.length===0)) byKey[r.key]='<div class="panel '+r.cls+'"><h3><span class="rdot"></span>'+r.label+'</h3>'+roleContentHtml(c)+'</div>'; });
