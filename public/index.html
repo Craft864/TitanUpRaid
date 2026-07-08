@@ -354,7 +354,7 @@ const ROLE_META=[
   {key:"healer",label:"Healers",cls:"panel--healer"},
   {key:"special",label:"Special Assignment",cls:"panel--special"}
 ];
-let state={ bossId:null, abilityIndex:0 };
+let state={ bossId:null, abilityIndex:0, occTime:null };
 let collapsed={};      // raidId -> true when collapsed (per viewer)
 let isEditor=false;    // set from /api/me
 let layoutEdit=false;  // sidebar reorder mode (editor only)
@@ -365,6 +365,8 @@ function findBoss(id){ for(const r of RAID_DATA){ for(const b of (r.bosses||[]))
 function firstBoss(){ for(const r of RAID_DATA){ if((r.bosses||[]).length) return r.bosses[0]; } return null; }
 function currentBoss(){ return findBoss(state.bossId) || firstBoss(); }
 function currentAbility(){const b=currentBoss();return b?(b.abilities||[])[state.abilityIndex]||{}:{};}
+function abilityTimes(ab){ if(ab&&Array.isArray(ab.times)&&ab.times.length) return ab.times.slice().filter(t=>typeof t==="number"); if(ab&&ab.time!=null) return [ab.time]; return [0]; }
+function bossOffset(b){ const n=b?Number(b.videoOffset):0; return isNaN(n)?0:n; }
 function saveCollapsed(){ try{ localStorage.setItem("titanup:collapsed", JSON.stringify(collapsed)); }catch(e){} }
 function loadCollapsed(){ try{ const r=localStorage.getItem("titanup:collapsed"); if(r) collapsed=JSON.parse(r)||{}; }catch(e){} }
 function escapeHtml(str){return String(str).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -452,7 +454,8 @@ function cueForCurrent(){
   if(!b) return;
   const platform=a.platform||b.platform||"youtube";
   const id=a.videoId||b.videoId;
-  const start=a.videoStart!=null?a.videoStart:(a.time||0);
+  const base=(state.occTime!=null)?state.occTime:abilityTimes(a)[0];
+  const start=Math.max(0, base + bossOffset(b));
   if(id) requestVideo(platform,id,start);
 }
 
@@ -557,7 +560,7 @@ function renderSideNav(){
 function wireSideNav(){
   const nav=$("#sideNav");
   nav.querySelectorAll("[data-caret]").forEach(c=>c.addEventListener("click",e=>{ e.stopPropagation(); const id=c.dataset.caret; collapsed[id]=!collapsed[id]; saveCollapsed(); renderSideNav(); }));
-  nav.querySelectorAll("[data-boss]").forEach(b=>b.addEventListener("click",()=>{ state.bossId=b.dataset.boss; state.abilityIndex=0; render(); }));
+  nav.querySelectorAll("[data-boss]").forEach(b=>b.addEventListener("click",()=>{ state.bossId=b.dataset.boss; state.abilityIndex=0; state.occTime=null; render(); }));
   const rt=$("#reorderToggle"); if(rt) rt.addEventListener("click",()=>{ layoutEdit=!layoutEdit; renderSideNav(); });
   if(layoutEdit) enableNavDrag(nav);
 }
@@ -602,7 +605,15 @@ function render(){
   { const cb=currentBoss(); if(cb) state.bossId=cb.id; }
   const boss=currentBoss();
   const abilities=boss?boss.abilities||[]:[];
-  if(state.abilityIndex>=abilities.length) state.abilityIndex=0;
+
+  // build one timeline node per (ability, time) occurrence, sorted by time
+  const nodes=[];
+  abilities.forEach((ab,ai)=>{ abilityTimes(ab).forEach(t=>nodes.push({ai:ai,t:t,ab:ab})); });
+  nodes.sort((x,y)=>x.t-y.t);
+
+  // resolve the active node
+  let active=nodes.findIndex(n=>n.ai===state.abilityIndex && n.t===state.occTime);
+  if(active<0){ if(nodes.length){ active=0; state.abilityIndex=nodes[0].ai; state.occTime=nodes[0].t; } else { state.abilityIndex=0; state.occTime=null; } }
   const ability=abilities[state.abilityIndex]||{};
   const platform=(ability.platform||(boss&&boss.platform)||"youtube");
   const tag='<span class="platform-tag '+platform+'">'+platform+'</span>';
@@ -614,22 +625,25 @@ function render(){
 
   $("#gifSlot").innerHTML = ability.gif
     ? '<div class="gif-wrap"><img src="'+ability.gif+'" alt="'+escapeHtml(ability.name||"")+' mechanic"></div>'
-    : '<div class="gif-wrap"><div class="gif-empty">No GIF set for this ability.<br>Add a <code>gif</code> URL in RAID_DATA.</div></div>';
+    : '<div class="gif-wrap"><div class="gif-empty">No GIF set for this ability.<br>Add a <code>gif</code> URL in the editor.</div></div>';
 
-  $("#timelineSlot").innerHTML = abilities.map((ab,i)=>{
-    const phase=ab.phase?'<span class="tl-phase">'+escapeHtml(ab.phase)+'</span>':"";
-    return '<button class="tl-node '+(i===state.abilityIndex?"active":"")+'" data-i="'+i+'"><span class="tl-time">'+fmtTime(ab.time)+'</span><span class="tl-dot"></span><span class="tl-label">'+escapeHtml(ab.name||"")+'</span>'+phase+'</button>';
+  $("#timelineSlot").innerHTML = nodes.map((n,i)=>{
+    const phase=n.ab.phase?'<span class="tl-phase">'+escapeHtml(n.ab.phase)+'</span>':"";
+    return '<button class="tl-node '+(i===active?"active":"")+'" data-ai="'+n.ai+'" data-t="'+n.t+'"><span class="tl-time">'+fmtTime(n.t)+'</span><span class="tl-dot"></span><span class="tl-label">'+escapeHtml(n.ab.name||"")+'</span>'+phase+'</button>';
   }).join("");
-  $("#timelineSlot").querySelectorAll(".tl-node").forEach(node=>node.addEventListener("click",()=>{ state.abilityIndex=Number(node.dataset.i); render(); }));
+  $("#timelineSlot").querySelectorAll(".tl-node").forEach(node=>node.addEventListener("click",()=>{ state.abilityIndex=Number(node.dataset.ai); state.occTime=Number(node.dataset.t); render(); }));
 
   const info=ability.info||{}; const byKey={};
   ROLE_META.forEach(r=>{ const c=info[r.key]; if(c&&!(Array.isArray(c)&&c.length===0)) byKey[r.key]='<div class="panel '+r.cls+'"><h3><span class="rdot"></span>'+r.label+'</h3>'+roleContentHtml(c)+'</div>'; });
   const row=["tank","dps","healer"].filter(k=>byKey[k]).map(k=>byKey[k]).join("");
   let panels=""; if(byKey.all) panels+=byKey.all; if(row) panels+='<div class="panel-row">'+row+'</div>'; if(byKey.special) panels+=byKey.special;
-  if(!panels) panels='<div class="panel panel--all"><h3><span class="rdot"></span>For Everyone</h3><p>No notes yet for this ability. Add an <code>info</code> block in RAID_DATA.</p></div>';
+  if(!panels) panels='<div class="panel panel--all"><h3><span class="rdot"></span>For Everyone</h3><p>No notes yet for this ability. Add notes in the editor.</p></div>';
 
+  const times=abilityTimes(ability);
+  const occLabel = state.occTime!=null ? fmtTime(state.occTime) : "";
+  const countLabel = times.length>1 ? ' &middot; hits '+times.length+'\u00d7' : '';
   $("#infoSlot").innerHTML =
-    '<div class="ability-title">'+escapeHtml(ability.name||"")+' <span>&middot; '+fmtTime(ability.time)+'</span></div>'+
+    '<div class="ability-title">'+escapeHtml(ability.name||"")+' <span>&middot; '+occLabel+countLabel+'</span></div>'+
     '<p class="ability-desc">'+escapeHtml(ability.desc||"")+'</p>'+
     '<div class="panels">'+panels+'</div>';
 
@@ -648,6 +662,7 @@ function parseVideoUrl(url){
   return null;
 }
 function parseTime(str){ str=(str||"").trim(); if(!str) return 0; if(/^\d+$/.test(str)) return parseInt(str,10); const p=str.split(":").map(x=>parseInt(x,10)); if(p.some(isNaN)) return 0; let s=0; p.forEach(n=>{s=s*60+n;}); return s; }
+function parseTimes(str){ const parts=(str||"").split(/[,\n]/).map(s=>s.trim()).filter(Boolean); const out=parts.map(parseTime).filter(t=>!isNaN(t)); return out.length?out:[0]; }
 function secToClock(sec){ sec=Math.max(0,Math.floor(sec||0)); const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s).padStart(2,"0"); }
 function linesToInfo(t){ const l=(t||"").split("\n").map(x=>x.trim()).filter(Boolean); if(l.length===0) return undefined; if(l.length===1) return l[0]; return l; }
 function infoToLines(v){ if(v==null) return ""; if(Array.isArray(v)) return v.join("\n"); return String(v); }
@@ -674,15 +689,15 @@ function field(label,inner){ return '<div class="field"><label>'+label+'</label>
 function abilityBlock(a,ai){
   const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
-  return '<details class="abil"><summary><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+secToClock(a.time)+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
+  return '<details class="abil"><summary><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
-      field("Time (mm:ss)",'<input '+D+' data-k="time" value="'+secToClock(a.time)+'">')+
+      field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
       field("Phase (optional)",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
-      field("Video start (mm:ss, optional)",'<input '+D+' data-k="videoStart" value="'+(a.videoStart!=null?secToClock(a.videoStart):"")+'">')+
+      field("Video override URL (optional)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'">')+
     '</div>'+
+    '<div class="det" style="margin:-6px 0 12px" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>'+
     field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
-    field("Video URL override (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
     field("GIF URL (optional)",'<input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'">')+
     '<div class="roles-grid">'+
       field("For everyone \u2014 one note per line",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>')+
@@ -706,6 +721,7 @@ function bossEditorHtml(){
     field("Which raid",'<select '+D+' data-k="moveraid">'+raidOptions+'</select>')+
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
     field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
+    field("Video offset (seconds) \u2014 where the pull happens in the video",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'"><div class="det">If the pull is a few seconds into the video, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.</div>')+
     '<div class="field"><label>Abilities / timeline (ordered by time)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
     '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
 }
@@ -735,8 +751,8 @@ function renderEditor(){
 }
 
 function applyField(obj,k,val,scope){
-  if(k==="time"){ obj.time=parseTime(val); }
-  else if(k==="videoStart"){ if(val.trim()==="") delete obj.videoStart; else obj.videoStart=parseTime(val); }
+  if(k==="times"){ obj.times=parseTimes(val); delete obj.time; delete obj.videoStart; }
+  else if(k==="videoOffset"){ const n=parseInt(val,10); obj.videoOffset=isNaN(n)?0:n; }
   else if(k==="videourl"){
     if(!val.trim()){ if(scope==="ability"){ delete obj.platform; delete obj.videoId; } else { obj.videoId=""; } }
     else { const p=parseVideoUrl(val); if(p){ obj.platform=p.platform; obj.videoId=p.id; } }
@@ -781,7 +797,7 @@ overlay.addEventListener("click",function(e){
 });
 
 function saveEditor(){
-  editData.forEach(raid=>{ raid.bosses=raid.bosses||[]; raid.bosses.forEach(b=>{ b.platform=b.platform||"youtube"; (b.abilities||[]).sort((x,y)=>(x.time||0)-(y.time||0)); }); });
+  editData.forEach(raid=>{ raid.bosses=raid.bosses||[]; raid.bosses.forEach(b=>{ b.platform=b.platform||"youtube"; (b.abilities||[]).sort((x,y)=>(abilityTimes(x)[0]||0)-(abilityTimes(y)[0]||0)); }); });
   RAID_DATA=editData; ensureIds(); persist();
   if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
   state.abilityIndex=0; currentLoadedId=null; teardownPlayers();
