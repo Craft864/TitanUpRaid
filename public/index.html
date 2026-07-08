@@ -42,6 +42,34 @@
   nav.bosses button:hover{color:var(--text); border-color:var(--border-strong); transform:translateY(-1px);}
   nav.bosses button.active{color:#fff; border-color:transparent; background:var(--grad); box-shadow:0 4px 16px rgba(224,128,48,.3);}
   main{max-width:1200px; margin:0 auto; padding:30px 22px 90px;}
+  .layout{display:grid; grid-template-columns:250px minmax(0,1fr); gap:28px; align-items:start;}
+  .content{min-width:0;}
+  .sidebar{position:sticky; top:88px; align-self:start; max-height:calc(100vh - 108px); overflow:auto; padding-right:4px;}
+  .side-tools{margin-bottom:12px;}
+  .reorder-toggle{font-family:var(--body); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:7px 12px; cursor:pointer;}
+  .reorder-toggle.on{color:#fff; background:var(--grad); border-color:transparent;}
+  .raid-group{margin-bottom:4px;}
+  .raid-head{display:flex; align-items:center; gap:6px; padding:8px 6px; border-radius:8px;}
+  .raid-head[draggable="true"]{cursor:grab;}
+  .raid-head .caret{background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:2px 4px; transition:transform .15s; width:16px; line-height:1;}
+  .raid-head .caret.collapsed{transform:rotate(-90deg);}
+  .raid-head .raid-name{font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.3px; color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .raid-bosses{margin:0 0 8px 11px; border-left:1px solid var(--border); padding-left:8px;}
+  .raid-bosses.collapsed{display:none;}
+  .nav-boss{display:flex; align-items:center; gap:6px; width:100%; text-align:left; font-family:var(--body); font-size:13.5px; font-weight:500; color:var(--muted); background:none; border:none; border-radius:7px; padding:8px 10px; cursor:pointer;}
+  .nav-boss span.txt{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .nav-boss:hover{color:var(--text); background:var(--panel);}
+  .nav-boss.active{color:#fff; background:linear-gradient(90deg,rgba(224,128,48,.28),rgba(145,71,255,.16));}
+  .nav-boss[draggable="true"]{cursor:grab;}
+  .nav-empty{color:var(--muted-2); font-size:12px; padding:6px 10px; font-style:italic;}
+  .grip{color:var(--muted-2); font-size:12px; flex:none;}
+  .drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px; border-radius:8px;}
+  .dragging{opacity:.4;}
+  .ed-raid{margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);}
+  .ed-raid-head{display:flex; gap:6px; align-items:center; margin-bottom:6px;}
+  .ed-raidname{flex:1; background:var(--bg-2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:var(--display); font-weight:600; font-size:12.5px; padding:7px 9px;}
+  .ed-x{padding:6px 10px; line-height:1;}
+  .ed-addboss{width:100%; margin-top:5px; font-size:12px; padding:6px;}
   .boss-head{margin-bottom:26px;}
   .boss-head .tier{font-family:var(--display); font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--orange-bright); margin-bottom:12px;}
   .boss-head h2{font-family:var(--display); font-weight:700; font-size:38px; letter-spacing:-1px; margin:0 0 14px; line-height:1.05; color:#fff;}
@@ -126,10 +154,10 @@
   .panel--special{--role:var(--role-special); background:linear-gradient(180deg,rgba(176,107,255,.09),transparent);}
   footer{max-width:1200px; margin:0 auto; padding:26px 22px 70px; color:var(--muted-2); font-size:12.5px; border-top:1px solid var(--border);}
   footer code{background:var(--panel-2); padding:2px 6px; border-radius:5px; color:var(--orange-bright);}
-  @media (max-width:860px){ .media{grid-template-columns:1fr;} .panel-row{grid-template-columns:1fr;} .boss-head h2{font-size:28px;} nav.bosses{margin-left:0; width:100%;} }
+  @media (max-width:860px){ .media{grid-template-columns:1fr;} .panel-row{grid-template-columns:1fr;} .boss-head h2{font-size:28px;} .layout{grid-template-columns:1fr;} .sidebar{position:static; max-height:none; margin-bottom:8px;} }
   @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important; scroll-behavior:auto;}}
   button:focus-visible,.swatch:focus-visible{outline:2px solid var(--orange-bright); outline-offset:2px;}
-  #editGuideBtn{font-family:var(--body); font-weight:600; font-size:13.5px; color:#fff; border:1px solid transparent; border-radius:999px; padding:9px 16px; cursor:pointer; background:var(--grad); box-shadow:0 4px 16px rgba(224,128,48,.28); margin-left:10px; transition:.15s;}
+  #editGuideBtn{font-family:var(--body); font-weight:600; font-size:13.5px; color:#fff; border:1px solid transparent; border-radius:999px; padding:9px 16px; cursor:pointer; background:var(--grad); box-shadow:0 4px 16px rgba(224,128,48,.28); margin-left:auto; transition:.15s;}
   #editGuideBtn:hover{transform:translateY(-1px);}
   body.editor-open{overflow:hidden;}
   #editorOverlay{position:fixed; inset:0; z-index:10000; background:rgba(6,5,10,.72); backdrop-filter:blur(6px); display:none; align-items:stretch; justify-content:center; padding:24px;}
@@ -172,12 +200,14 @@
       <div class="crest" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 4 20h5l3-7 3 7h5L12 3Z" fill="#fff"/></svg></div>
       <div><h1>TITAN UP</h1><div class="sub">Raid Guide</div></div>
     </div>
-    <nav class="bosses" id="bossNav" aria-label="Boss selector"></nav>
     <button id="editGuideBtn" title="Create and edit boss pages">Edit guide</button>
   </div>
 </header>
 
 <main>
+  <div class="layout">
+  <aside class="sidebar" id="sideNav" aria-label="Raid navigation"></aside>
+  <div class="content">
   <div id="bossHead"></div>
   <div class="media">
     <div class="card" id="videoCard">
@@ -228,6 +258,8 @@
     <div class="timeline" id="timelineSlot" aria-label="Ability timeline"></div>
   </div>
   <div id="infoSlot"></div>
+  </div>
+  </div>
 </main>
 
 <div id="editorOverlay"></div>
@@ -264,47 +296,52 @@
 const TWITCH_PARENTS = null; // e.g. ["titanup.github.io","www.mysite.com"]; null = auto-detect
 
 const DEFAULT_DATA = [
+  { id:"raid_abyss", name:"The Venomous Abyss", bosses:[] },
   {
-    id:"warden", name:"The Molten Warden", tier:"Example Raid \u2014 Wing 1",
-    overview:"A two-phase example encounter (YouTube video). Replace this whole entry with your real boss \u2014 the placeholder values show how every field maps onto the page.",
-    videoId:"MyBYHIBBKjo",
-    abilities:[
-      { name:"Cinder Slam", time:8, phase:"P1", videoStart:8, gif:"",
-        desc:"Frontal cleave on the current tank. Heavy physical damage plus a stacking burn.",
-        info:{ all:"Stay out of the frontal cone \u2014 only the tank should be hit.",
-          tank:["Active tank faces the boss away from the raid.","Use a major cooldown at 3+ stacks of Burn."],
-          dps:"Keep uptime, avoid standing in front.", healer:"Spot-heal the tank through the burn stacks." } },
-      { name:"Ember Storm", time:32, phase:"P1", videoStart:32, gif:"",
-        desc:"Raid-wide AoE that hits three times over 6 seconds. Drop fire pools on expiration.",
-        info:{ all:["Spread at least 4 yards apart before it lands.","Move out of the fire pool that spawns under you."],
-          healer:["Pre-shield the raid before the first tick.","Raid cooldown recommended for the third tick."] } },
-      { name:"Molten Core", time:60, phase:"P2", videoStart:60, gif:"",
-        desc:"Phase transition. Boss shields and spawns a soak orb that an immune player must absorb.",
-        info:{ all:"Burn the shield fast, then reposition to the marked soak spot.",
-          tank:"Grab the two adds that spawn and face them away.",
-          dps:"Swap to the shield at the start of P2, then back to boss.",
-          healer:"Top the soaker before and after they take the orb.",
-          special:["SOAKER: pre-assigned immune player (Paladin bubble / Mage block).","Stand on the purple marker and take the orb at full energy.","Call out in voice when your immunity is on cooldown."] } }
-    ]
-  },
-  {
-    id:"twitchtest", name:"Twitch VOD Test", tier:"Embed Test", platform:"twitch",
-    overview:"Testing your Twitch VOD embed. Reminder: Twitch only plays when this page is served from a real domain (or a localhost dev server) with the matching parent \u2014 not from a double-clicked local file. Click the timeline stops to seek the VOD to different timestamps.",
-    videoId:"2810226576",
-    abilities:[
-      { name:"Seek to 0:30", time:30, gif:"", desc:"Jumps the Twitch VOD to 30 seconds in.",
-        info:{ all:"Example timestamp seek on a Twitch VOD. Replace with a real mechanic + callouts." } },
-      { name:"Seek to 2:00", time:120, gif:"", desc:"Jumps the Twitch VOD to 2 minutes in.",
-        info:{ all:"Second example seek." } },
-      { name:"Seek to 5:00", time:300, gif:"", desc:"Jumps the Twitch VOD to 5 minutes in.",
-        info:{ all:"Third example seek." } }
+    id:"raid_quel", name:"March on Quel'danas",
+    bosses:[
+      {
+        id:"boss_warden", name:"The Molten Warden", tier:"Example \u2014 edit or delete me",
+        overview:"A two-phase example encounter. Use it as a template, or delete it and add your real bosses.",
+        platform:"youtube", videoId:"MyBYHIBBKjo",
+        abilities:[
+          { name:"Cinder Slam", time:8, phase:"P1", videoStart:8, gif:"",
+            desc:"Frontal cleave on the current tank. Heavy physical damage plus a stacking burn.",
+            info:{ all:"Stay out of the frontal cone \u2014 only the tank should be hit.",
+              tank:["Active tank faces the boss away from the raid.","Use a major cooldown at 3+ stacks of Burn."],
+              dps:"Keep uptime, avoid standing in front.", healer:"Spot-heal the tank through the burn stacks." } },
+          { name:"Ember Storm", time:32, phase:"P1", videoStart:32, gif:"",
+            desc:"Raid-wide AoE that hits three times over 6 seconds. Drop fire pools on expiration.",
+            info:{ all:["Spread at least 4 yards apart before it lands.","Move out of the fire pool that spawns under you."],
+              healer:["Pre-shield the raid before the first tick.","Raid cooldown recommended for the third tick."] } },
+          { name:"Molten Core", time:60, phase:"P2", videoStart:60, gif:"",
+            desc:"Phase transition. Boss shields and spawns a soak orb that an immune player must absorb.",
+            info:{ all:"Burn the shield fast, then reposition to the marked soak spot.",
+              tank:"Grab the two adds that spawn and face them away.",
+              dps:"Swap to the shield at the start of P2, then back to boss.",
+              healer:"Top the soaker before and after they take the orb.",
+              special:["SOAKER: pre-assigned immune player (Paladin bubble / Mage block).","Stand on the purple marker and take the orb at full energy.","Call out in voice when your immunity is on cooldown."] } }
+        ]
+      }
     ]
   }
 ];
 
 /* ---- data comes from the server API (/api/data) ---- */
 let RAID_DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
-async function loadFromServer(){ try{ const r=await fetch("/api/data",{credentials:"same-origin"}); if(r.ok){ const j=await r.json(); if(j&&j.data&&Array.isArray(j.data)&&j.data.length) RAID_DATA=j.data; } }catch(e){} }
+/* migrate old flat boss arrays into the raid-nested format; drop the old Twitch test */
+function migrate(data){
+  if(!Array.isArray(data)||!data.length) return null;
+  if(data[0] && Array.isArray(data[0].bosses)) return data; // already raid format
+  const bosses=data.filter(b=> b && b.id!=="twitchtest" && b.name!=="Twitch VOD Test");
+  return [{ id:"raid_default", name:"Raid", bosses:bosses }];
+}
+function ensureIds(){
+  RAID_DATA.forEach((r,ri)=>{ if(!r.id) r.id="raid_"+ri+"_"+Math.random().toString(36).slice(2,7);
+    r.bosses=r.bosses||[];
+    r.bosses.forEach((b,bi)=>{ if(!b.id) b.id="boss_"+ri+"_"+bi+"_"+Math.random().toString(36).slice(2,7); }); });
+}
+async function loadFromServer(){ try{ const r=await fetch("/api/data",{credentials:"same-origin"}); if(r.ok){ const j=await r.json(); const mig=j&&migrate(j.data); if(mig) RAID_DATA=mig; } }catch(e){} ensureIds(); }
 async function persist(){ try{ const r=await fetch("/api/data",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(RAID_DATA)}); if(!r.ok) throw new Error("save failed"); }catch(e){ alert("Couldn\u2019t save to the server \u2014 make sure you\u2019re logged in as the editor."); } }
 
 /* ================================================================
@@ -317,11 +354,19 @@ const ROLE_META=[
   {key:"healer",label:"Healers",cls:"panel--healer"},
   {key:"special",label:"Special Assignment",cls:"panel--special"}
 ];
-let state={ bossId: RAID_DATA[0]?RAID_DATA[0].id:null, abilityIndex:0 };
+let state={ bossId:null, abilityIndex:0 };
+let collapsed={};      // raidId -> true when collapsed (per viewer)
+let isEditor=false;    // set from /api/me
+let layoutEdit=false;  // sidebar reorder mode (editor only)
 const $=s=>document.querySelector(s);
 function fmtTime(sec){sec=Math.max(0,Math.floor(sec||0));const m=Math.floor(sec/60),s=sec%60;return m+":"+String(s).padStart(2,"0");}
-function currentBoss(){return RAID_DATA.find(b=>b.id===state.bossId)||RAID_DATA[0];}
+function findRaid(id){ return RAID_DATA.find(r=>r.id===id); }
+function findBoss(id){ for(const r of RAID_DATA){ for(const b of (r.bosses||[])){ if(b.id===id) return b; } } return null; }
+function firstBoss(){ for(const r of RAID_DATA){ if((r.bosses||[]).length) return r.bosses[0]; } return null; }
+function currentBoss(){ return findBoss(state.bossId) || firstBoss(); }
 function currentAbility(){const b=currentBoss();return b?(b.abilities||[])[state.abilityIndex]||{}:{};}
+function saveCollapsed(){ try{ localStorage.setItem("titanup:collapsed", JSON.stringify(collapsed)); }catch(e){} }
+function loadCollapsed(){ try{ const r=localStorage.getItem("titanup:collapsed"); if(r) collapsed=JSON.parse(r)||{}; }catch(e){} }
 function escapeHtml(str){return String(str).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function roleContentHtml(c){ if(Array.isArray(c)) return "<ul>"+c.map(li=>"<li>"+escapeHtml(li)+"</li>").join("")+"</ul>"; return "<p>"+escapeHtml(c)+"</p>"; }
 
@@ -404,6 +449,7 @@ function pauseCurrent(){
 }
 function cueForCurrent(){
   const b=currentBoss(), a=currentAbility();
+  if(!b) return;
   const platform=a.platform||b.platform||"youtube";
   const id=a.videoId||b.videoId;
   const start=a.videoStart!=null?a.videoStart:(a.time||0);
@@ -482,12 +528,78 @@ theaterToggle.addEventListener("click",()=>setTheater(!theater));
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&theater) setTheater(false); });
 
 /* ---------- render ---------- */
-function renderBossNav(){
-  const nav=$("#bossNav"); nav.innerHTML="";
-  RAID_DATA.forEach(boss=>{ const btn=document.createElement("button"); btn.textContent=boss.name; btn.className=boss.id===state.bossId?"active":""; btn.onclick=()=>{ state.bossId=boss.id; state.abilityIndex=0; render(); }; nav.appendChild(btn); });
+function renderSideNav(){
+  const nav=$("#sideNav"); if(!nav) return;
+  let html="";
+  if(isEditor){
+    html+='<div class="side-tools"><button class="reorder-toggle'+(layoutEdit?" on":"")+'" id="reorderToggle">'+(layoutEdit?"Done reordering":"Reorder raids &amp; bosses")+'</button></div>';
+  }
+  RAID_DATA.forEach(raid=>{
+    const coll=!!collapsed[raid.id];
+    const rdrag=layoutEdit?' draggable="true"':'';
+    html+='<div class="raid-group" data-raid="'+raid.id+'">';
+    html+='<div class="raid-head" data-raidhead="'+raid.id+'"'+rdrag+'>';
+    html+='<button class="caret'+(coll?" collapsed":"")+'" data-caret="'+raid.id+'" aria-label="Collapse or expand">\u25BE</button>';
+    if(layoutEdit) html+='<span class="grip">\u2630</span>';
+    html+='<span class="raid-name">'+escapeHtml(raid.name||"(unnamed raid)")+'</span></div>';
+    html+='<div class="raid-bosses'+(coll?" collapsed":"")+'" data-raidbosses="'+raid.id+'">';
+    const bosses=raid.bosses||[];
+    if(!bosses.length) html+='<div class="nav-empty">No bosses yet</div>';
+    bosses.forEach(b=>{
+      const bdrag=layoutEdit?' draggable="true"':'';
+      html+='<button class="nav-boss'+(b.id===state.bossId?" active":"")+'" data-boss="'+b.id+'" data-inraid="'+raid.id+'"'+bdrag+'>'+(layoutEdit?'<span class="grip">\u2630</span>':'')+'<span class="txt">'+escapeHtml(b.name||"(unnamed)")+'</span></button>';
+    });
+    html+='</div></div>';
+  });
+  nav.innerHTML=html;
+  wireSideNav();
+}
+function wireSideNav(){
+  const nav=$("#sideNav");
+  nav.querySelectorAll("[data-caret]").forEach(c=>c.addEventListener("click",e=>{ e.stopPropagation(); const id=c.dataset.caret; collapsed[id]=!collapsed[id]; saveCollapsed(); renderSideNav(); }));
+  nav.querySelectorAll("[data-boss]").forEach(b=>b.addEventListener("click",()=>{ state.bossId=b.dataset.boss; state.abilityIndex=0; render(); }));
+  const rt=$("#reorderToggle"); if(rt) rt.addEventListener("click",()=>{ layoutEdit=!layoutEdit; renderSideNav(); });
+  if(layoutEdit) enableNavDrag(nav);
+}
+let dragItem=null;
+function enableNavDrag(nav){
+  const clear=()=>nav.querySelectorAll(".dragging,.drag-target").forEach(x=>x.classList.remove("dragging","drag-target"));
+  nav.querySelectorAll("[data-raidhead]").forEach(el=>{
+    el.addEventListener("dragstart",e=>{ dragItem={type:"raid",id:el.dataset.raidhead}; el.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; e.stopPropagation(); });
+    el.addEventListener("dragend",()=>{ clear(); dragItem=null; });
+    el.addEventListener("dragover",e=>{ if(dragItem){ e.preventDefault(); el.classList.add("drag-target"); } });
+    el.addEventListener("dragleave",()=>el.classList.remove("drag-target"));
+    el.addEventListener("drop",e=>{ e.preventDefault(); el.classList.remove("drag-target"); onNavDrop(el.dataset.raidhead,null); });
+  });
+  nav.querySelectorAll("[data-boss]").forEach(el=>{
+    el.addEventListener("dragstart",e=>{ dragItem={type:"boss",id:el.dataset.boss,raidId:el.dataset.inraid}; el.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; e.stopPropagation(); });
+    el.addEventListener("dragend",()=>{ clear(); dragItem=null; });
+    el.addEventListener("dragover",e=>{ if(dragItem){ e.preventDefault(); e.stopPropagation(); el.classList.add("drag-target"); } });
+    el.addEventListener("dragleave",()=>el.classList.remove("drag-target"));
+    el.addEventListener("drop",e=>{ e.preventDefault(); e.stopPropagation(); el.classList.remove("drag-target"); onNavDrop(el.dataset.inraid,el.dataset.boss); });
+  });
+}
+function onNavDrop(targetRaidId,targetBossId){
+  if(!dragItem) return;
+  if(dragItem.type==="raid"){
+    if(dragItem.id===targetRaidId){ dragItem=null; return; }
+    const from=RAID_DATA.findIndex(r=>r.id===dragItem.id); if(from<0){ dragItem=null; return; }
+    const [moved]=RAID_DATA.splice(from,1);
+    let to=RAID_DATA.findIndex(r=>r.id===targetRaidId); if(to<0) to=RAID_DATA.length;
+    RAID_DATA.splice(to,0,moved);
+  } else {
+    const src=findRaid(dragItem.raidId), tgt=findRaid(targetRaidId);
+    if(!src||!tgt){ dragItem=null; return; }
+    const bi=src.bosses.findIndex(b=>b.id===dragItem.id); if(bi<0){ dragItem=null; return; }
+    const [moved]=src.bosses.splice(bi,1);
+    if(targetBossId){ let ti=tgt.bosses.findIndex(b=>b.id===targetBossId); if(ti<0) ti=tgt.bosses.length; tgt.bosses.splice(ti,0,moved); }
+    else tgt.bosses.push(moved);
+  }
+  dragItem=null; persist(); renderSideNav();
 }
 function render(){
-  renderBossNav();
+  renderSideNav();
+  { const cb=currentBoss(); if(cb) state.bossId=cb.id; }
   const boss=currentBoss();
   const abilities=boss?boss.abilities||[]:[];
   if(state.abilityIndex>=abilities.length) state.abilityIndex=0;
@@ -541,16 +653,18 @@ function linesToInfo(t){ const l=(t||"").split("\n").map(x=>x.trim()).filter(Boo
 function infoToLines(v){ if(v==null) return ""; if(Array.isArray(v)) return v.join("\n"); return String(v); }
 function videoUrlFor(p,id){ if(!id) return ""; return p==="twitch" ? "https://www.twitch.tv/videos/"+id : "https://youtu.be/"+id; }
 function detText(p,id){ return id ? ((p||"youtube")+" \u00b7 id "+id) : "Paste a YouTube or Twitch URL"; }
-function blankBoss(){ return {id:"boss"+Date.now(), name:"New Boss", tier:"", overview:"", platform:"youtube", videoId:"", abilities:[]}; }
+function blankBoss(){ return {id:"boss_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"New Boss", tier:"", overview:"", platform:"youtube", videoId:"", abilities:[]}; }
 function blankAbility(){ return {name:"New Ability", time:0, desc:"", gif:"", info:{}}; }
+function blankRaid(){ return {id:"raid_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"New Raid", bosses:[]}; }
 
-let editData=null, editBossIdx=0;
+let editData=null, editRaidIdx=0, editBossIdx=-1;
 const overlay=$("#editorOverlay");
 
 function openEditor(){
   editData=JSON.parse(JSON.stringify(RAID_DATA));
-  if(!editData.length) editData=[blankBoss()];
-  if(editBossIdx>=editData.length) editBossIdx=0;
+  if(!editData.length) editData=[blankRaid()];
+  if(editRaidIdx>=editData.length) editRaidIdx=0;
+  editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1;
   renderEditor();
   overlay.classList.add("show"); document.body.classList.add("editor-open");
 }
@@ -558,47 +672,63 @@ function closeEditor(){ overlay.classList.remove("show"); document.body.classLis
 function field(label,inner){ return '<div class="field"><label>'+label+'</label>'+inner+'</div>'; }
 
 function abilityBlock(a,ai){
-  const bi=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
+  const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
+  const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
   return '<details class="abil"><summary><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+secToClock(a.time)+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
-      field("Name",'<input data-b="'+bi+'" data-a="'+ai+'" data-k="name" value="'+escapeHtml(a.name||"")+'">')+
-      field("Time (mm:ss)",'<input data-b="'+bi+'" data-a="'+ai+'" data-k="time" value="'+secToClock(a.time)+'">')+
-      field("Phase (optional)",'<input data-b="'+bi+'" data-a="'+ai+'" data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
-      field("Video start (mm:ss, optional)",'<input data-b="'+bi+'" data-a="'+ai+'" data-k="videoStart" value="'+(a.videoStart!=null?secToClock(a.videoStart):"")+'">')+
+      field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
+      field("Time (mm:ss)",'<input '+D+' data-k="time" value="'+secToClock(a.time)+'">')+
+      field("Phase (optional)",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
+      field("Video start (mm:ss, optional)",'<input '+D+' data-k="videoStart" value="'+(a.videoStart!=null?secToClock(a.videoStart):"")+'">')+
     '</div>'+
-    field("Description",'<textarea data-b="'+bi+'" data-a="'+ai+'" data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
-    field("Video URL override (optional \u2014 blank uses the boss video)",'<input data-b="'+bi+'" data-a="'+ai+'" data-k="videourl" data-det="det'+bi+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+bi+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
-    field("GIF URL (optional)",'<input data-b="'+bi+'" data-a="'+ai+'" data-k="gif" value="'+escapeHtml(a.gif||"")+'">')+
+    field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
+    field("Video URL override (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
+    field("GIF URL (optional)",'<input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'">')+
     '<div class="roles-grid">'+
-      field("For everyone \u2014 one note per line",'<textarea data-b="'+bi+'" data-a="'+ai+'" data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>')+
-      field("Tanks",'<textarea data-b="'+bi+'" data-a="'+ai+'" data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>')+
-      field("DPS",'<textarea data-b="'+bi+'" data-a="'+ai+'" data-k="info.dps">'+escapeHtml(infoToLines(a.info&&a.info.dps))+'</textarea>')+
-      field("Healers",'<textarea data-b="'+bi+'" data-a="'+ai+'" data-k="info.healer">'+escapeHtml(infoToLines(a.info&&a.info.healer))+'</textarea>')+
+      field("For everyone \u2014 one note per line",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>')+
+      field("Tanks",'<textarea '+D+' data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>')+
+      field("DPS",'<textarea '+D+' data-k="info.dps">'+escapeHtml(infoToLines(a.info&&a.info.dps))+'</textarea>')+
+      field("Healers",'<textarea '+D+' data-k="info.healer">'+escapeHtml(infoToLines(a.info&&a.info.healer))+'</textarea>')+
     '</div>'+
-    field("Special assignment (optional)",'<textarea data-b="'+bi+'" data-a="'+ai+'" data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>')+
+    field("Special assignment (optional)",'<textarea '+D+' data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>')+
     '<button class="btn danger" data-action="delabil" data-a="'+ai+'">Delete ability</button>'+
   '</div></details>';
 }
 
-function renderEditor(){
-  const b=editData[editBossIdx];
-  const list=editData.map((bo,i)=>'<button class="bl'+(i===editBossIdx?" sel":"")+'" data-action="selboss" data-b="'+i+'">'+escapeHtml(bo.name||"(unnamed)")+'</button>').join("");
+function bossEditorHtml(){
+  if(editBossIdx<0) return '<p class="det" style="margin-top:8px">Select a boss on the left, or use <strong>+ Add boss</strong> under a raid to create one.</p>';
+  const r=editRaidIdx, bi=editBossIdx, b=editData[r].bosses[bi];
+  const D='data-r="'+r+'" data-b="'+bi+'"';
   const abils=(b.abilities||[]).map((a,ai)=>abilityBlock(a,ai)).join("");
+  const raidOptions=editData.map((rd,i)=>'<option value="'+i+'"'+(i===r?" selected":"")+'>'+escapeHtml(rd.name||"(unnamed)")+'</option>').join("");
+  return field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'">')+
+    field("Tier / label (small text above the name)",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">')+
+    field("Which raid",'<select '+D+' data-k="moveraid">'+raidOptions+'</select>')+
+    field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
+    field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
+    '<div class="field"><label>Abilities / timeline (ordered by time)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
+    '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
+}
+
+function renderEditor(){
+  let outline="";
+  editData.forEach((raid,ri)=>{
+    outline+='<div class="ed-raid">'+
+      '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'"><button class="btn danger ed-x" data-action="delraid" data-r="'+ri+'" title="Delete raid">\u00d7</button></div>';
+    (raid.bosses||[]).forEach((b,bi)=>{
+      const sel=(ri===editRaidIdx&&bi===editBossIdx);
+      outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+'</button>';
+    });
+    outline+='<button class="btn ed-addboss" data-action="addboss" data-r="'+ri+'">+ Add boss</button></div>';
+  });
+  outline+='<button class="btn" data-action="addraid" style="width:100%;margin-top:6px">+ Add raid</button>';
+
   overlay.innerHTML =
   '<div class="editor">'+
-    '<div class="editor-head"><h2>Guide Editor</h2><span class="det" style="margin:0">Saved in this browser for now \u2014 use Export to back up or move it.</span><button class="btn" data-action="close" style="margin-left:auto">Close</button></div>'+
+    '<div class="editor-head"><h2>Guide Editor</h2><span class="det" style="margin:0">Saved to the shared server when you click Save changes.</span><button class="btn" data-action="close" style="margin-left:auto">Close</button></div>'+
     '<div class="editor-body">'+
-      '<div class="boss-list">'+list+
-        '<button class="btn" data-action="addboss" style="width:100%;margin-top:10px">+ Add boss</button>'+
-        (editData.length>1?'<button class="btn danger" data-action="delboss" style="width:100%;margin-top:8px">Delete this boss</button>':'')+
-      '</div>'+
-      '<div class="boss-editor">'+
-        field("Boss name",'<input data-b="'+editBossIdx+'" data-k="name" value="'+escapeHtml(b.name||"")+'">')+
-        field("Tier / label (small text above the name)",'<input data-b="'+editBossIdx+'" data-k="tier" value="'+escapeHtml(b.tier||"")+'">')+
-        field("Overview",'<textarea data-b="'+editBossIdx+'" data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
-        field("Default video URL (YouTube or Twitch)",'<input data-b="'+editBossIdx+'" data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
-        '<div class="field"><label>Abilities / timeline (ordered by time)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
-      '</div>'+
+      '<div class="boss-list">'+outline+'</div>'+
+      '<div class="boss-editor">'+bossEditorHtml()+'</div>'+
     '</div>'+
     '<div class="editor-foot"><button class="btn" data-action="import">Import JSON</button><button class="btn" data-action="export">Export JSON</button><span class="spacer"></span><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="save">Save changes</button></div>'+
   '</div>';
@@ -617,31 +747,43 @@ function applyField(obj,k,val,scope){
 
 overlay.addEventListener("input",function(e){
   const t=e.target, k=t.dataset.k; if(k==null) return;
-  const bi=Number(t.dataset.b);
-  const isAbil=(t.dataset.a!=null);
-  const obj=isAbil?editData[bi].abilities[Number(t.dataset.a)]:editData[bi];
-  applyField(obj,k,t.value,isAbil?"ability":"boss");
-  if(k==="videourl"&&t.dataset.det){ const d=document.getElementById(t.dataset.det); if(d) d.textContent = t.value.trim()?detText(obj.platform,obj.videoId):(isAbil?"Inherits the boss video":"Paste a YouTube or Twitch URL"); }
+  const r=Number(t.dataset.r);
+  if(k==="raidname"){ editData[r].name=t.value; return; }
+  if(k==="moveraid"){
+    const to=Number(t.value), bi=Number(t.dataset.b);
+    if(to!==r && editData[to]){ const [mv]=editData[r].bosses.splice(bi,1); editData[to].bosses.push(mv); editRaidIdx=to; editBossIdx=editData[to].bosses.length-1; renderEditor(); }
+    return;
+  }
+  const bi=(t.dataset.b!=null)?Number(t.dataset.b):null;
+  const ai=(t.dataset.a!=null)?Number(t.dataset.a):null;
+  let obj, scope;
+  if(ai!=null){ obj=editData[r].bosses[bi].abilities[ai]; scope="ability"; }
+  else if(bi!=null){ obj=editData[r].bosses[bi]; scope="boss"; }
+  else return;
+  applyField(obj,k,t.value,scope);
+  if(k==="videourl"&&t.dataset.det){ const d=document.getElementById(t.dataset.det); if(d) d.textContent = t.value.trim()?detText(obj.platform,obj.videoId):(scope==="ability"?"Inherits the boss video":"Paste a YouTube or Twitch URL"); }
 });
 
 overlay.addEventListener("click",function(e){
   const btn=e.target.closest("[data-action]"); if(!btn) return;
   const act=btn.dataset.action;
   if(act==="close"){ closeEditor(); }
-  else if(act==="selboss"){ editBossIdx=Number(btn.dataset.b); renderEditor(); }
-  else if(act==="addboss"){ editData.push(blankBoss()); editBossIdx=editData.length-1; renderEditor(); }
-  else if(act==="delboss"){ if(editData.length>1){ editData.splice(editBossIdx,1); editBossIdx=0; renderEditor(); } }
-  else if(act==="addabil"){ const b=editData[editBossIdx]; b.abilities=b.abilities||[]; b.abilities.push(blankAbility()); renderEditor(); }
-  else if(act==="delabil"){ editData[editBossIdx].abilities.splice(Number(btn.dataset.a),1); renderEditor(); }
+  else if(act==="selboss"){ editRaidIdx=Number(btn.dataset.r); editBossIdx=Number(btn.dataset.b); renderEditor(); }
+  else if(act==="addboss"){ const ri=Number(btn.dataset.r); editData[ri].bosses=editData[ri].bosses||[]; editData[ri].bosses.push(blankBoss()); editRaidIdx=ri; editBossIdx=editData[ri].bosses.length-1; renderEditor(); }
+  else if(act==="delboss"){ editData[editRaidIdx].bosses.splice(editBossIdx,1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
+  else if(act==="addraid"){ editData.push(blankRaid()); editRaidIdx=editData.length-1; editBossIdx=-1; renderEditor(); }
+  else if(act==="delraid"){ const ri=Number(btn.dataset.r); editData.splice(ri,1); if(!editData.length) editData=[blankRaid()]; editRaidIdx=Math.min(editRaidIdx,editData.length-1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
+  else if(act==="addabil"){ const b=editData[editRaidIdx].bosses[editBossIdx]; b.abilities=b.abilities||[]; b.abilities.push(blankAbility()); renderEditor(); }
+  else if(act==="delabil"){ editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1); renderEditor(); }
   else if(act==="export"){ exportData(); }
   else if(act==="import"){ importData(); }
   else if(act==="save"){ saveEditor(); }
 });
 
 function saveEditor(){
-  editData.forEach(b=>{ b.platform=b.platform||"youtube"; (b.abilities||[]).sort((x,y)=>(x.time||0)-(y.time||0)); });
-  RAID_DATA=editData; persist();
-  if(!RAID_DATA.find(b=>b.id===state.bossId)){ state.bossId=RAID_DATA[0]?RAID_DATA[0].id:null; }
+  editData.forEach(raid=>{ raid.bosses=raid.bosses||[]; raid.bosses.forEach(b=>{ b.platform=b.platform||"youtube"; (b.abilities||[]).sort((x,y)=>(x.time||0)-(y.time||0)); }); });
+  RAID_DATA=editData; ensureIds(); persist();
+  if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
   state.abilityIndex=0; currentLoadedId=null; teardownPlayers();
   closeEditor(); render();
 }
@@ -654,7 +796,7 @@ function exportData(){
 function importData(){
   const inp=document.createElement("input"); inp.type="file"; inp.accept="application/json,.json";
   inp.onchange=function(){ const f=inp.files&&inp.files[0]; if(!f) return; const r=new FileReader();
-    r.onload=function(){ try{ const d=JSON.parse(r.result); if(Array.isArray(d)&&d.length){ editData=d; editBossIdx=0; renderEditor(); } else alert("That file doesn\u2019t look like guide data."); }catch(err){ alert("Couldn\u2019t read that file as JSON."); } };
+    r.onload=function(){ try{ const d=JSON.parse(r.result); const mig=migrate(d); if(mig){ editData=mig; editRaidIdx=0; editBossIdx=(editData[0].bosses||[]).length?0:-1; renderEditor(); } else alert("That file doesn\u2019t look like guide data."); }catch(err){ alert("Couldn\u2019t read that file as JSON."); } };
     r.readAsText(f); };
   inp.click();
 }
@@ -664,6 +806,7 @@ async function loadMe(){
   try{
     const r=await fetch("/api/me",{credentials:"same-origin"});
     const me=await r.json();
+    isEditor=!!me.isEditor;
     const btn=document.getElementById("editGuideBtn");
     if(btn && !me.isEditor) btn.style.display="none";
     const hi=document.querySelector(".header-inner");
@@ -675,7 +818,7 @@ async function loadMe(){
     }
   }catch(e){}
 }
-async function init(){ resizeCanvas(); await Promise.all([loadFromServer(), loadMe()]); render(); }
+async function init(){ loadCollapsed(); resizeCanvas(); await Promise.all([loadFromServer(), loadMe()]); render(); }
 init();
 </script>
 </body>
