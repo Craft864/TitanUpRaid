@@ -382,7 +382,18 @@ function migrate(data){
 function ensureIds(){
   RAID_DATA.forEach((r,ri)=>{ if(!r.id) r.id="raid_"+ri+"_"+Math.random().toString(36).slice(2,7);
     r.bosses=r.bosses||[];
-    r.bosses.forEach((b,bi)=>{ if(!b.id) b.id="boss_"+ri+"_"+bi+"_"+Math.random().toString(36).slice(2,7); }); });
+    r.bosses.forEach((b,bi)=>{
+      if(!b.id) b.id="boss_"+ri+"_"+bi+"_"+Math.random().toString(36).slice(2,7);
+      (b.phases||[]).forEach((p,pi)=>{ if(p&&!p.id) p.id="phase_"+ri+"_"+bi+"_"+pi+"_"+Math.random().toString(36).slice(2,7); });
+      // migrate legacy anchors that stored a phase name instead of its (now stable) id
+      (b.abilities||[]).forEach(a=>{
+        if(a&&a.anchor&&(b.phases||[]).length && !(b.phases||[]).some(p=>p.id===a.anchor)){
+          const byName=(b.phases||[]).find(p=>p.name===a.anchor);
+          if(byName) a.anchor=byName.id;
+        }
+      });
+    });
+  });
 }
 async function loadFromServer(){ try{ const r=await fetch("/api/data",{credentials:"same-origin"}); if(r.ok){ const j=await r.json(); const mig=j&&migrate(j.data); if(mig) RAID_DATA=mig; } }catch(e){} ensureIds(); }
 async function persist(){ try{ const r=await fetch("/api/data",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(RAID_DATA)}); if(!r.ok) throw new Error("save failed"); }catch(e){ alert("Couldn\u2019t save to the server \u2014 make sure you\u2019re logged in as the editor."); } }
@@ -673,8 +684,8 @@ function onNavDrop(targetRaidId,targetBossId){
 }
 const LANE_COLORS=["#f2933f","#a06bff","#4c8dff","#35c47a","#ff5a6a","#e8c04a","#c07bff","#38d6ff","#ff8ac2","#8ee04a"];
 function laneColor(i){ return LANE_COLORS[i%LANE_COLORS.length]; }
-function phaseStartByName(boss,name){ const p=(boss.phases||[]).find(x=>x&&x.name===name); return p?(p.time||0):0; }
-function effTimes(ab,boss){ const raw=abilityTimes(ab); if(ab&&ab.anchor&&boss){ const base=phaseStartByName(boss,ab.anchor); return raw.map(t=>base+t); } return raw; }
+function phaseStartById(boss,id){ const p=(boss.phases||[]).find(x=>x&&x.id===id); return p?(p.time||0):0; }
+function effTimes(ab,boss){ const raw=abilityTimes(ab); if(ab&&ab.anchor&&boss){ const base=phaseStartById(boss,ab.anchor); return raw.map(t=>base+t); } return raw; }
 
 let tlBossId=null, tlView={pps:null,startT:0}, tlData=null;
 
@@ -861,8 +872,9 @@ function abilityBlock(a,ai){
   const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
   const boss=editData[r].bosses[b];
-  const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.name)+'"'+(a.anchor===p.name?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
-  return '<details class="abil" draggable="true" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(a.anchor?" after "+escapeHtml(a.anchor):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
+  const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.id)+'"'+(a.anchor===p.id?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
+  const anchorPhase=a.anchor?(boss.phases||[]).find(p=>p&&p.id===a.anchor):null;
+  return '<details class="abil" draggable="true" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
       field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
@@ -984,7 +996,7 @@ overlay.addEventListener("click",function(e){
   else if(act==="addraid"){ editData.push(blankRaid()); editRaidIdx=editData.length-1; editBossIdx=-1; renderEditor(); }
   else if(act==="delraid"){ const ri=Number(btn.dataset.r); editData.splice(ri,1); if(!editData.length) editData=[blankRaid()]; editRaidIdx=Math.min(editRaidIdx,editData.length-1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
   else if(act==="addabil"){ const b=editData[editRaidIdx].bosses[editBossIdx]; b.abilities=b.abilities||[]; b.abilities.push(blankAbility()); renderEditor(); }
-  else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({name:"", time:0}); renderEditor(); }
+  else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({id:"phase_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", time:0}); renderEditor(); }
   else if(act==="delphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b), p=Number(btn.dataset.p); editData[ri].bosses[bi].phases.splice(p,1); renderEditor(); }
   else if(act==="delabil"){ editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1); renderEditor(); }
   else if(act==="export"){ exportData(); }
@@ -994,6 +1006,7 @@ overlay.addEventListener("click",function(e){
 
 let phaseDrag=null, abilDrag=null;
 overlay.addEventListener("dragstart",function(e){
+  if(e.target.closest("input,textarea,select")){ e.preventDefault(); return; }
   const ph=e.target.closest("[data-phaserow]");
   if(ph){ phaseDrag={r:Number(ph.dataset.r), b:Number(ph.dataset.b), p:Number(ph.dataset.p)}; ph.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",""); return; }
   const ab=e.target.closest("[data-abilrow]");
