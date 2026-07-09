@@ -425,6 +425,7 @@ function isAllowedRaidplanHost(url){
 let ytReady=false, twReady=false, pending=null;
 let currentPlatform=null, currentVideoId=null;
 let ytPlayer=null, twPlayer=null;
+let ytWarmed=false, ytPendingSeek=0;
 
 window.onYouTubeIframeAPIReady=function(){ ytReady=true; tryApply(); };
 (function pollTwitch(){ if(window.Twitch&&window.Twitch.Player){ twReady=true; tryApply(); } else setTimeout(pollTwitch,60); })();
@@ -451,7 +452,13 @@ function tryApply(){
 function teardownPlayers(){
   try{ if(ytPlayer&&ytPlayer.destroy) ytPlayer.destroy(); }catch(e){}
   ytPlayer=null; twPlayer=null; clearHost();
-  currentPlatform=null; currentVideoId=null;
+  currentPlatform=null; currentVideoId=null; ytWarmed=false;
+}
+function warmUpYouTube(){
+  // cueVideoById() leaves the player "cued" but never actually started -- seekTo()
+  // on a never-started player silently breaks (black frame, no play button). Force
+  // one muted play->pause cycle so every later seek/pause works reliably.
+  try{ ytPlayer.mute(); ytPlayer.playVideo(); }catch(e){}
 }
 function ytErrorMessage(code){
   if(code===153) return "YouTube blocked the embed because this page isn\u2019t sending a referrer it trusts \u2014 an environment issue, not the video. It happens in the in-app preview, when opened as a local file, or when an ad blocker / privacy extension strips the referrer. Host the page on a real https domain (and/or pause your ad blocker on it) and it will play.";
@@ -464,11 +471,15 @@ function ytErrorMessage(code){
 function applyYouTube(id,start){
   hideStageMsg();
   if(currentPlatform==="youtube"&&ytPlayer&&ytPlayer.cueVideoById){
-    if(id===currentVideoId){ try{ytPlayer.seekTo(start||0,true); ytPlayer.pauseVideo();}catch(e){} }
-    else { try{ytPlayer.cueVideoById({videoId:id,startSeconds:start||0}); currentVideoId=id;}catch(e){} }
+    ytPendingSeek=start||0;
+    if(id===currentVideoId){
+      if(ytWarmed){ try{ytPlayer.seekTo(start||0,true); ytPlayer.pauseVideo();}catch(e){} }
+      else { warmUpYouTube(); }
+    }
+    else { try{ytPlayer.cueVideoById({videoId:id,startSeconds:start||0}); currentVideoId=id;}catch(e){} if(!ytWarmed) warmUpYouTube(); }
     return;
   }
-  teardownPlayers(); currentPlatform="youtube"; currentVideoId=id;
+  teardownPlayers(); currentPlatform="youtube"; currentVideoId=id; ytPendingSeek=start||0;
   const d=document.createElement("div"); d.id="ytInner"; $("#playerHost").appendChild(d);
   const isHosted=(location.protocol==="http:"||location.protocol==="https:");
   const pv={rel:0,modestbranding:1,playsinline:1};
@@ -476,7 +487,17 @@ function applyYouTube(id,start){
   ytPlayer=new YT.Player("ytInner",{ width:"100%", height:"100%",
     host:"https://www.youtube-nocookie.com", playerVars:pv,
     events:{
-      onReady:function(){ try{ var f=ytPlayer.getIframe&&ytPlayer.getIframe(); if(f) f.setAttribute("referrerpolicy","strict-origin-when-cross-origin"); }catch(e){} try{ytPlayer.cueVideoById({videoId:id,startSeconds:start||0});}catch(e){} },
+      onReady:function(){
+        try{ var f=ytPlayer.getIframe&&ytPlayer.getIframe(); if(f) f.setAttribute("referrerpolicy","strict-origin-when-cross-origin"); }catch(e){}
+        try{ytPlayer.cueVideoById({videoId:id,startSeconds:start||0});}catch(e){}
+        warmUpYouTube();
+      },
+      onStateChange:function(ev){
+        if(!ytWarmed && ev.data===YT.PlayerState.PLAYING){
+          ytWarmed=true;
+          try{ ytPlayer.seekTo(ytPendingSeek||0,true); ytPlayer.pauseVideo(); ytPlayer.unMute(); }catch(e){}
+        }
+      },
       onError:function(ev){ showStageMsg("<div><strong>YouTube couldn\u2019t play this video.</strong><br>"+ytErrorMessage(ev&&ev.data)+"</div>"); }
     } });
 }
