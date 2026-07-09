@@ -13,8 +13,9 @@
        EDITOR_BATTLETAGS  comma list, e.g. "You#1234"
        ALLOWLIST_NAMES    comma list of character names or battletags
      BINDINGS:
-       ASSETS  (static assets, the public/ folder)
-       TU_KV   (KV namespace)
+       ASSETS     (static assets, the public/ folder)
+       TU_KV      (KV namespace)
+       TU_IMAGES  (R2 bucket, for guild-uploaded images)
    ================================================================ */
 
 const OAUTH = {
@@ -34,6 +35,8 @@ export default {
       if (path === "/auth/logout") return handleLogout(request, env);
       if (path === "/api/me") return handleMe(request, env);
       if (path === "/api/data") return handleData(request, env);
+      if (path === "/api/upload") return handleUpload(request, env);
+      if (path.startsWith("/img/")) return handleImage(request, env, decodeURIComponent(path.slice(5)));
       return handleApp(request, env);
     } catch (e) {
       console.error("worker error:", e && e.stack ? e.stack : e);
@@ -217,6 +220,41 @@ async function handleData(request, env) {
     return json({ ok: true });
   }
   return json({ error: "method not allowed" }, 405);
+}
+
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB is far beyond any raid-plan screenshot
+const ALLOWED_IMAGE_TYPES = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
+
+async function handleUpload(request, env) {
+  if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
+  const s = await getSession(request, env);
+  if (!s || !s.isEditor) return json({ error: "forbidden" }, 403);
+
+  const contentType = (request.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+  const ext = ALLOWED_IMAGE_TYPES[contentType];
+  if (!ext) return json({ error: "Unsupported image type — use PNG, JPEG, GIF, or WEBP." }, 400);
+
+  const declaredLen = Number(request.headers.get("Content-Length") || 0);
+  if (declaredLen && declaredLen > MAX_UPLOAD_BYTES) return json({ error: "Image too large (max 8MB)." }, 413);
+
+  const buf = await request.arrayBuffer();
+  if (buf.byteLength > MAX_UPLOAD_BYTES) return json({ error: "Image too large (max 8MB)." }, 413);
+
+  const key = crypto.randomUUID() + "." + ext;
+  await env.TU_IMAGES.put(key, buf, { httpMetadata: { contentType } });
+  return json({ url: "/img/" + key });
+}
+
+async function handleImage(request, env, key) {
+  const s = await getSession(request, env);
+  if (!s || !s.isMember) return new Response("Not found", { status: 404 });
+  if (!key || key.includes("/") || key.includes("..")) return new Response("Not found", { status: 404 });
+  const obj = await env.TU_IMAGES.get(key);
+  if (!obj) return new Response("Not found", { status: 404 });
+  const headers = new Headers();
+  headers.set("Content-Type", (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream");
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  return new Response(obj.body, { headers });
 }
 
 /* ---------- app / gating ---------- */

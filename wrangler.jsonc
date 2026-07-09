@@ -16,6 +16,14 @@
     { "binding": "TU_KV", "id": "f7f5714677af4be5a65baad94b7ba364" }
   ],
 
+  // R2 bucket for guild-uploaded images (ability GIFs / raid-planning screenshots).
+  // Dashboard -> R2 Object Storage -> Create bucket -> name it anything (e.g.
+  // "titanupraid-images") -> put that exact name below. No ID needed, unlike KV.
+  // The free tier (10GB storage, 1M writes + 10M reads/month) is plenty for this.
+  "r2_buckets": [
+    { "binding": "TU_IMAGES", "bucket_name": "titanupraid-images" }
+  ],
+
   // Non-secret config. Edit EDITOR_BATTLETAGS to your own BattleTag.
   // ALLOWLIST_NAMES: comma-separated character names OR BattleTags that
   // should always be let in (e.g. brand-new recruits not on the roster yet).
