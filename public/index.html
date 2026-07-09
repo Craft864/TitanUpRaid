@@ -159,6 +159,7 @@
   .ph-row .ph-name{flex:1; min-width:0;} .ph-row .ph-time{width:96px; flex:none;}
   .abil.dragging{opacity:.4;} .abil.drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px;}
   .section-title{font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:1.5px; color:var(--muted); margin-bottom:18px; text-transform:uppercase;}
+  .section-title .scope-tag{font-weight:500; letter-spacing:.3px; text-transform:none; color:var(--muted-2);}
   .timeline{display:flex; gap:0; overflow-x:auto; padding:6px 2px 20px;}
   .timeline::-webkit-scrollbar{height:8px;}
   .timeline::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:4px;}
@@ -302,7 +303,7 @@
     </div>
   </div>
   <div class="raidplan-section" id="raidplanSection" style="display:none">
-    <div class="section-title">Raid Plan</div>
+    <div class="section-title">Raid Plan<span class="scope-tag" id="raidplanScope"></span></div>
     <div class="card"><div id="raidplanSlot"></div></div>
   </div>
   <div class="recorder-section" id="recorderSection" style="display:none">
@@ -820,10 +821,12 @@ function render(){
   mediaEl.style.display=(hasVideo||hasGif)?"":"none";
   mediaEl.classList.toggle("single", (hasVideo||hasGif)&&!(hasVideo&&hasGif));
 
-  const rpUrl=((boss&&boss.raidplanUrl)||"").trim();
+  const abilRpUrl=(ability.raidplanUrl||"").trim();
+  const rpUrl=abilRpUrl||((boss&&boss.raidplanUrl)||"").trim();
   const rpSection=$("#raidplanSection");
   if(rpUrl && isAllowedRaidplanHost(rpUrl)){
     rpSection.style.display="";
+    $("#raidplanScope").textContent=abilRpUrl?" — this ability":"";
     $("#raidplanSlot").innerHTML='<div class="raidplan-wrap"><iframe src="'+escapeHtml(rpUrl)+'" loading="lazy" allow="fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"></iframe></div>';
   } else {
     rpSection.style.display="none";
@@ -919,6 +922,7 @@ function abilityBlock(a,ai){
     field("Video override URL (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
     field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
     field("GIF URL (optional)",'<input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'">')+
+    field("Raid plan override (optional — blank uses the boss’s Raid Plan)",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(a.raidplanUrl||"")+'"><div class="det">Only needed if this specific ability has its own raidstrats.gg plan (e.g. a soak assignment). Same rules as the boss-level one: must be an https://raidstrats.gg embed link.</div>')+
     '<div class="roles-grid">'+
       field("For everyone \u2014 one note per line",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>')+
       field("Tanks",'<textarea '+D+' data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>')+
