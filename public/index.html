@@ -120,6 +120,9 @@
   .raidplan-section{margin:30px 0 8px;}
   .raidplan-wrap{width:100%; height:70vh; min-height:480px; max-height:820px; background:#0a0910;}
   .raidplan-wrap iframe{width:100%; height:100%; border:0; display:block;}
+  .recorder-section{margin:30px 0 8px;}
+  .recorder-wrap{width:100%; aspect-ratio:16/9; background:#0a0910;}
+  .recorder-wrap iframe{width:100%; height:100%; border:0; display:block;}
   .timeline-section{margin:34px 0 28px;}
   .tl2-wrap{border:1px solid var(--border); border-radius:12px; background:var(--panel); overflow:hidden;}
   .tl2{display:grid; grid-template-columns:172px minmax(0,1fr);}
@@ -302,6 +305,10 @@
     <div class="section-title">Raid Plan</div>
     <div class="card"><div id="raidplanSlot"></div></div>
   </div>
+  <div class="recorder-section" id="recorderSection" style="display:none">
+    <div class="section-title">Recorded Pull</div>
+    <div class="card"><div id="recorderSlot"></div></div>
+  </div>
   <div class="timeline-section">
     <div class="section-title">Ability Timeline</div>
     <div id="timelineSlot" aria-label="Ability timeline"></div>
@@ -436,6 +443,12 @@ function isAllowedRaidplanHost(url){
   try{ const u=new URL(url); if(u.protocol!=="https:") return false;
     const h=u.hostname.toLowerCase();
     return h==="raidstrats.gg"||h.endsWith(".raidstrats.gg")||h==="diar.gg"||h.endsWith(".diar.gg");
+  }catch(e){ return false; }
+}
+function isAllowedRecorderHost(url){
+  try{ const u=new URL(url); if(u.protocol!=="https:") return false;
+    const h=u.hostname.toLowerCase();
+    return h==="warcraftrecorder.com"||h.endsWith(".warcraftrecorder.com");
   }catch(e){ return false; }
 }
 
@@ -817,6 +830,16 @@ function render(){
     $("#raidplanSlot").innerHTML="";
   }
 
+  const recUrl=((boss&&boss.recorderUrl)||"").trim();
+  const recSection=$("#recorderSection");
+  if(recUrl && isAllowedRecorderHost(recUrl)){
+    recSection.style.display="";
+    $("#recorderSlot").innerHTML='<div class="recorder-wrap"><iframe src="'+escapeHtml(recUrl)+'" loading="lazy" allow="fullscreen; autoplay" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"></iframe></div>';
+  } else {
+    recSection.style.display="none";
+    $("#recorderSlot").innerHTML="";
+  }
+
   $("#timelineSlot").innerHTML = renderTimeline(boss);
   drawTrack();
   { const vp=$("#timelineSlot").querySelector(".tl2-viewport"); if(vp) attachTimelineControls(vp); }
@@ -920,6 +943,7 @@ function bossEditorHtml(){
     field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
     field("Video offset (seconds) \u2014 where the pull happens in the video",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'"><div class="det">If the pull is a few seconds into the video, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.</div>')+
     field("Raid plan embed (raidstrats.gg, optional)",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(b.raidplanUrl||"")+'"><div class="det">On raidstrats.gg open your plan, click <strong>Share \u2192 Embed</strong>, and paste the URL it gives you here (must be an https://raidstrats.gg link). Leave blank to hide this section on the boss page.</div>')+
+    field("Recorded pull (Warcraft Recorder, optional)",'<input '+D+' data-k="recorderUrl" value="'+escapeHtml(b.recorderUrl||"")+'"><div class="det">Paste a warcraftrecorder.com share link (the \u201cCopy Link\u201d button on a clip). Leave blank to hide this section on the boss page.</div>')+
     field("Phase timings (optional \u2014 shown across the top of the timeline)", phaseListHtml(r,bi,b))+
     '<div class="field"><label>Abilities / timeline (drag ☰ to reorder)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
     '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
