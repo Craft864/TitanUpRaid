@@ -229,6 +229,13 @@
   .tag-chip:hover{border-color:var(--border-strong); color:var(--text);}
   .tag-chip input{position:absolute; opacity:0; width:1px; height:1px;}
   .tag-chip:has(input:checked){color:#fff; background:var(--grad); border-color:transparent;}
+  .img-thumbs{display:flex; flex-wrap:wrap; gap:8px; padding:8px; border:1px dashed var(--border); border-radius:10px; margin-bottom:8px; min-height:20px;}
+  .img-thumbs:focus{outline:none; border-color:var(--orange-bright);}
+  .img-thumbs-empty{color:var(--muted-2); font-size:12.5px; padding:6px 2px;}
+  .img-thumb{position:relative; width:84px; height:64px; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--bg-2); flex:none;}
+  .img-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .img-thumb-x{position:absolute; top:2px; right:2px; width:20px; height:20px; padding:0; border-radius:50%; border:none; background:rgba(10,9,16,.75); color:#fff; font-size:13px; line-height:1; cursor:pointer; display:grid; place-items:center;}
+  .img-thumb-x:hover{background:#ff3b3b;}
   .abil{border:1px solid var(--border); border-radius:10px; margin-bottom:10px; background:var(--panel);}
   .abil>summary{cursor:pointer; padding:11px 14px; font-size:14px; list-style:none; display:flex; gap:10px; align-items:center;}
   .abil>summary::-webkit-details-marker{display:none;}
@@ -438,6 +445,24 @@ function pickAndUpload(btn,multiple,onDone){
   };
   inp.click();
 }
+function ownImageKey(url){
+  if(!url) return null;
+  try{
+    const u=new URL(url, location.href);
+    if(u.origin!==location.origin) return null;
+    const m=u.pathname.match(/^\/img\/([^/]+)$/);
+    return m?decodeURIComponent(m[1]):null;
+  }catch(e){ return null; }
+}
+function deleteImage(url){
+  const key=ownImageKey(url);
+  if(!key) return; // not one of our uploads -- nothing to clean up server-side
+  fetch("/api/upload?key="+encodeURIComponent(key),{method:"DELETE",credentials:"same-origin"}).catch(()=>{});
+}
+function deleteImages(urls){ (urls||[]).forEach(deleteImage); }
+function collectImageUrlsFromAbility(a){ const out=[]; if(a&&a.gif) out.push(a.gif); if(a&&Array.isArray(a.images)) out.push.apply(out,a.images); return out; }
+function collectImageUrlsFromBoss(b){ let out=[]; (b&&b.abilities||[]).forEach(a=>{ out=out.concat(collectImageUrlsFromAbility(a)); }); return out; }
+function collectImageUrlsFromRaid(rd){ let out=[]; (rd&&rd.bosses||[]).forEach(b=>{ out=out.concat(collectImageUrlsFromBoss(b)); }); return out; }
 
 /* ================================================================
    ENGINE
@@ -940,6 +965,8 @@ function abilityBlock(a,ai){
   const boss=editData[r].bosses[b];
   const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.id)+'"'+(a.anchor===p.id?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
   const anchorPhase=a.anchor?(boss.phases||[]).find(p=>p&&p.id===a.anchor):null;
+  const imgs=a.images||[];
+  const imgThumbs=imgs.map((u,ii)=>'<div class="img-thumb"><img src="'+escapeHtml(u)+'" loading="lazy"><button class="img-thumb-x" data-action="delabilimg" '+D+' data-i="'+ii+'" title="Remove image">×</button></div>').join("");
   return '<details class="abil" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" draggable="true" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
@@ -951,9 +978,9 @@ function abilityBlock(a,ai){
     field("Ability type (select all that apply)",'<div class="tag-chips">'+ABILITY_TAGS.map(tag=>'<label class="tag-chip"><input type="checkbox" '+D+' data-k="tag" data-tag="'+escapeHtml(tag)+'"'+((a.tags||[]).includes(tag)?" checked":"")+'>'+escapeHtml(tag)+'</label>').join("")+'</div>')+
     field("Video override URL (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
     field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
-    field("GIF URL (optional)",'<div style="display:flex;gap:8px"><input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'" style="flex:1"><button class="btn" data-action="uploadgif" '+D+'>Upload</button></div>')+
+    field("GIF URL (optional — paste an image, paste/type a URL, or upload)",'<div style="display:flex;gap:8px"><input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'" style="flex:1"><button class="btn" data-action="uploadgif" '+D+'>Upload</button>'+(a.gif?'<button class="btn danger" data-action="delgifimg" '+D+' title="Remove image">×</button>':"")+'</div>')+
     field("Raid plan override (optional — blank uses the boss’s Raid Plan)",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(a.raidplanUrl||"")+'"><div class="det">Only needed if this specific ability has its own raidstrats.gg plan (e.g. a soak assignment). Same rules as the boss-level one: must be an https://raidstrats.gg embed link.</div>')+
-    field("Raid planning images (optional — one image URL per line)",'<textarea '+D+' data-k="images">'+escapeHtml((a.images||[]).join("\n"))+'</textarea><div style="margin-top:6px"><button class="btn" data-action="uploadimages" '+D+'>Upload image(s)</button></div><div class="det">Screenshots or diagrams for this ability — positioning charts, soak assignments, etc. Shown as a small gallery under the description.</div>')+
+    field("Raid planning images (optional — upload, or click here and paste an image)",'<div class="img-thumbs" data-imgdrop tabindex="0" title="Click, then Ctrl+V to paste a copied image" '+D+'>'+(imgThumbs||'<div class="img-thumbs-empty">No images yet</div>')+'</div><button class="btn" data-action="uploadimages" '+D+'>Upload image(s)</button><div class="det">Screenshots or diagrams for this ability — positioning charts, soak assignments, etc. Shown as a small gallery under the description.</div>')+
     '<div class="roles-grid">'+
       field("For everyone \u2014 one note per line",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>')+
       field("Tanks",'<textarea '+D+' data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>')+
@@ -1028,7 +1055,6 @@ function applyField(obj,k,val,scope){
     else { const p=parseVideoUrl(val); if(p){ obj.platform=p.platform; obj.videoId=p.id; } }
   }
   else if(k.indexOf("info.")===0){ const role=k.slice(5); obj.info=obj.info||{}; const v=linesToInfo(val); if(v===undefined) delete obj.info[role]; else obj.info[role]=v; }
-  else if(k==="images"){ const arr=(val||"").split("\n").map(x=>x.trim()).filter(Boolean); if(arr.length) obj.images=arr; else delete obj.images; }
   else { obj[k]=val; }
 }
 
@@ -1071,20 +1097,32 @@ overlay.addEventListener("click",function(e){
   if(act==="close"){ closeEditor(); }
   else if(act==="selboss"){ editRaidIdx=Number(btn.dataset.r); editBossIdx=Number(btn.dataset.b); renderEditor(); }
   else if(act==="addboss"){ const ri=Number(btn.dataset.r); editData[ri].bosses=editData[ri].bosses||[]; editData[ri].bosses.push(blankBoss()); editRaidIdx=ri; editBossIdx=editData[ri].bosses.length-1; renderEditor(); }
-  else if(act==="delboss"){ editData[editRaidIdx].bosses.splice(editBossIdx,1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
+  else if(act==="delboss"){ const removed=editData[editRaidIdx].bosses.splice(editBossIdx,1)[0]; deleteImages(collectImageUrlsFromBoss(removed)); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
   else if(act==="addraid"){ editData.push(blankRaid()); editRaidIdx=editData.length-1; editBossIdx=-1; renderEditor(); }
-  else if(act==="delraid"){ const ri=Number(btn.dataset.r); editData.splice(ri,1); if(!editData.length) editData=[blankRaid()]; editRaidIdx=Math.min(editRaidIdx,editData.length-1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
+  else if(act==="delraid"){ const ri=Number(btn.dataset.r); const removed=editData.splice(ri,1)[0]; deleteImages(collectImageUrlsFromRaid(removed)); if(!editData.length) editData=[blankRaid()]; editRaidIdx=Math.min(editRaidIdx,editData.length-1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
   else if(act==="addabil"){ const b=editData[editRaidIdx].bosses[editBossIdx]; b.abilities=b.abilities||[]; b.abilities.push(blankAbility()); renderEditor(); }
   else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({id:"phase_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", time:0}); renderEditor(); }
   else if(act==="delphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b), p=Number(btn.dataset.p); editData[ri].bosses[bi].phases.splice(p,1); renderEditor(); }
-  else if(act==="delabil"){ editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1); renderEditor(); }
+  else if(act==="delabil"){ const removed=editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1)[0]; deleteImages(collectImageUrlsFromAbility(removed)); renderEditor(); }
   else if(act==="uploadgif"){
     const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a);
-    pickAndUpload(btn,false,urls=>{ editData[r].bosses[bi].abilities[ai].gif=urls[0]; renderEditor(); });
+    const ab=editData[r].bosses[bi].abilities[ai];
+    pickAndUpload(btn,false,urls=>{ deleteImage(ab.gif); ab.gif=urls[0]; renderEditor(); });
+  }
+  else if(act==="delgifimg"){
+    const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a);
+    const ab=editData[r].bosses[bi].abilities[ai];
+    deleteImage(ab.gif); ab.gif=""; renderEditor();
   }
   else if(act==="uploadimages"){
     const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a);
     pickAndUpload(btn,true,urls=>{ const ab=editData[r].bosses[bi].abilities[ai]; ab.images=(ab.images||[]).concat(urls); renderEditor(); });
+  }
+  else if(act==="delabilimg"){
+    const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a), ii=Number(btn.dataset.i);
+    const ab=editData[r].bosses[bi].abilities[ai];
+    const removed=(ab.images||[]).splice(ii,1)[0];
+    deleteImage(removed); renderEditor();
   }
   else if(act==="export"){ exportData(); }
   else if(act==="import"){ importData(); }
@@ -1134,6 +1172,24 @@ overlay.addEventListener("drop",function(e){
 overlay.addEventListener("dragend",function(){
   overlay.querySelectorAll(".dragging,.drag-target").forEach(x=>x.classList.remove("dragging","drag-target"));
   phaseDrag=null; abilDrag=null;
+});
+
+overlay.addEventListener("paste",async function(e){
+  const gifInput=(e.target&&e.target.dataset&&e.target.dataset.k==="gif")?e.target:null;
+  const dropZone=(!gifInput&&e.target&&e.target.closest)?e.target.closest("[data-imgdrop]"):null;
+  const target=gifInput||dropZone; if(!target) return;
+  const items=(e.clipboardData&&e.clipboardData.items)||[];
+  let file=null;
+  for(const it of items){ if(it.type&&it.type.indexOf("image/")===0){ file=it.getAsFile(); break; } }
+  if(!file) return;
+  e.preventDefault();
+  const r=Number(target.dataset.r), bi=Number(target.dataset.b), ai=Number(target.dataset.a);
+  const ab=editData[r].bosses[bi].abilities[ai];
+  try{
+    const url=await uploadImage(file);
+    if(gifInput){ deleteImage(ab.gif); ab.gif=url; } else { ab.images=(ab.images||[]).concat([url]); }
+    renderEditor();
+  }catch(err){ alert("Couldn’t upload pasted image: "+(err&&err.message?err.message:"unknown error")); }
 });
 
 function saveEditor(){

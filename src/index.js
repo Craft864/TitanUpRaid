@@ -225,10 +225,24 @@ async function handleData(request, env) {
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB is far beyond any raid-plan screenshot
 const ALLOWED_IMAGE_TYPES = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
 
+function imageKeyFromRequest(request) {
+  const key = new URL(request.url).searchParams.get("key") || "";
+  if (!key || key.includes("/") || key.includes("..")) return null;
+  return key;
+}
+
 async function handleUpload(request, env) {
-  if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
   const s = await getSession(request, env);
   if (!s || !s.isEditor) return json({ error: "forbidden" }, 403);
+
+  if (request.method === "DELETE") {
+    const key = imageKeyFromRequest(request);
+    if (!key) return json({ error: "bad key" }, 400);
+    await env.TU_IMAGES.delete(key);
+    return json({ ok: true });
+  }
+
+  if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   const contentType = (request.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
   const ext = ALLOWED_IMAGE_TYPES[contentType];
@@ -242,7 +256,7 @@ async function handleUpload(request, env) {
 
   const key = crypto.randomUUID() + "." + ext;
   await env.TU_IMAGES.put(key, buf, { httpMetadata: { contentType } });
-  return json({ url: "/img/" + key });
+  return json({ url: new URL("/img/" + key, request.url).toString() });
 }
 
 async function handleImage(request, env, key) {
