@@ -36,7 +36,8 @@ export default {
       if (path === "/api/data") return handleData(request, env);
       return handleApp(request, env);
     } catch (e) {
-      return new Response("Server error: " + (e && e.message ? e.message : e), { status: 500 });
+      console.error("worker error:", e && e.stack ? e.stack : e);
+      return new Response("Something went wrong on the server. Try again in a moment.", { status: 500 });
     }
   },
 };
@@ -136,9 +137,9 @@ async function handleCallback(request, env, url) {
   return new Response(null, { status: 302, headers });
 }
 
-function handleLogout(request, env) {
+async function handleLogout(request, env) {
   const sid = getCookie(request, "tu_session");
-  if (sid) env.TU_KV.delete("session:" + sid);
+  if (sid) await env.TU_KV.delete("session:" + sid);
   const headers = new Headers();
   headers.append("Set-Cookie", "tu_session=; Path=/; Max-Age=0");
   headers.set("Location", "/");
@@ -207,8 +208,10 @@ async function handleData(request, env) {
   }
   if (request.method === "POST") {
     if (!s.isEditor) return json({ error: "forbidden" }, 403);
+    const raw = await request.text();
+    if (raw.length > 2_000_000) return json({ error: "payload too large" }, 413); // ~2MB is far beyond any realistic guide
     let body;
-    try { body = await request.json(); } catch (e) { return json({ error: "bad json" }, 400); }
+    try { body = JSON.parse(raw); } catch (e) { return json({ error: "bad json" }, 400); }
     if (!Array.isArray(body)) return json({ error: "expected an array" }, 400);
     await env.TU_KV.put("guilddata", JSON.stringify(body));
     return json({ ok: true });
