@@ -124,26 +124,27 @@
   .tl2-name{display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-bottom:1px solid rgba(255,255,255,.05); cursor:pointer;}
   .tl2-name:hover{filter:brightness(1.3);}
   .tl2-name.active{color:#fff !important; background:linear-gradient(90deg,rgba(224,128,48,.32),transparent);}
-  .tl2-track{overflow-x:auto;}
-  .tl2-track::-webkit-scrollbar{height:9px;} .tl2-track::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:5px;}
-  .tl2-track-inner{position:relative;}
+  .tl2-viewport{position:relative; overflow:hidden; cursor:crosshair; user-select:none; touch-action:none;}
+  .tl2-viewport.grabbing{cursor:grabbing;}
+  .tl2-inner{position:absolute; inset:0;}
   .tl2-bg{position:absolute; inset:0; z-index:0;}
   .tl2-grid{position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.045);}
-  .tl2-phase{position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.16);}
-  .tl2-phasebar{position:relative; z-index:1; border-bottom:1px solid var(--border); background:var(--panel-2);}
+  .tl2-phase{position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.16); z-index:2;}
+  .tl2-phasebar{position:absolute; left:0; right:0; top:0; z-index:1; border-bottom:1px solid var(--border); background:var(--panel-2); overflow:hidden;}
   .tl2-phaseband{position:absolute; top:0; bottom:0; display:flex; align-items:center; justify-content:center; border-left:2px solid rgba(255,255,255,.2); background:linear-gradient(180deg,rgba(224,128,48,.10),transparent);}
   .tl2-phaseband span{font-family:var(--display); font-size:10px; font-weight:600; letter-spacing:.6px; text-transform:uppercase; color:var(--text); opacity:.9; padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .tl2-row{position:relative; z-index:1; border-bottom:1px solid rgba(255,255,255,.05);}
-  .tl2-row:nth-child(odd){background:rgba(255,255,255,.015);}
+  .tl2-row{position:absolute; left:0; right:0; z-index:1; border-bottom:1px solid rgba(255,255,255,.05);}
   .tl2-mark{position:absolute; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; padding:0; height:20px;}
   .tl2-mark .bar{height:15px; min-width:5px; border-radius:4px; background:color-mix(in srgb, var(--c) 32%, transparent); border-left:3px solid var(--c);}
   .tl2-mark .lbl{font-size:11px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.7); white-space:nowrap;}
   .tl2-mark:hover .bar{filter:brightness(1.25);} .tl2-mark:hover .lbl{color:var(--text);}
   .tl2-mark.active .bar{background:color-mix(in srgb, var(--c) 60%, transparent); border-left-color:#fff; box-shadow:0 0 12px var(--c);}
   .tl2-mark.active .lbl{color:#fff; font-weight:700;}
-  .tl2-axis{position:relative; z-index:1; border-top:1px solid var(--border); background:var(--panel-2);}
+  .tl2-axis{position:absolute; left:0; right:0; bottom:0; z-index:1; border-top:1px solid var(--border); background:var(--panel-2); overflow:hidden;}
   .tl2-ticklabel{position:absolute; top:7px; font-size:10.5px; color:var(--muted); transform:translateX(-50%); font-variant-numeric:tabular-nums;}
+  .tl2-selbox{position:absolute; top:0; bottom:0; background:rgba(224,128,48,.16); border-left:1px solid var(--orange-bright); border-right:1px solid var(--orange-bright); pointer-events:none; z-index:6;}
   .tl2-empty{padding:22px; color:var(--muted-2); font-size:13px; text-align:center;}
+  .tl2-hint{margin-top:8px; font-size:11.5px; color:var(--muted-2);}
   .ph-row{display:flex; gap:6px; margin-bottom:6px;} .ph-name{flex:1;} .ph-time{width:82px;}
   .section-title{font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:1.5px; color:var(--muted); margin-bottom:18px; text-transform:uppercase;}
   .timeline{display:flex; gap:0; overflow-x:auto; padding:6px 2px 20px;}
@@ -482,7 +483,7 @@ function cueForCurrent(){
   if(!b) return;
   const platform=a.platform||b.platform||"youtube";
   const id=a.videoId||b.videoId;
-  const base=(state.occTime!=null)?state.occTime:abilityTimes(a)[0];
+  const base=(state.occTime!=null)?state.occTime:effTimes(a,b)[0];
   const start=Math.max(0, base + bossOffset(b));
   if(id) requestVideo(platform,id,start);
 }
@@ -542,6 +543,7 @@ document.querySelectorAll("[data-size]").forEach(b=>b.addEventListener("click",(
 $("#undoBtn").addEventListener("click",()=>{ shapes().pop(); redraw(); });
 $("#clearBtn").addEventListener("click",()=>{ annStore[annKey()]=[]; redraw(); });
 window.addEventListener("resize",resizeCanvas);
+window.addEventListener("resize",function(){ if(tlData) drawTrack(); });
 
 /* ---------- theater mode ---------- */
 const videoCard=$("#videoCard"), theaterToggle=$("#theaterToggle"), theaterText=$("#theaterText");
@@ -630,48 +632,85 @@ function onNavDrop(targetRaidId,targetBossId){
 }
 const LANE_COLORS=["#f2933f","#a06bff","#4c8dff","#35c47a","#ff5a6a","#e8c04a","#c07bff","#38d6ff","#ff8ac2","#8ee04a"];
 function laneColor(i){ return LANE_COLORS[i%LANE_COLORS.length]; }
+function phaseStartByName(boss,name){ const p=(boss.phases||[]).find(x=>x&&x.name===name); return p?(p.time||0):0; }
+function effTimes(ab,boss){ const raw=abilityTimes(ab); if(ab&&ab.anchor&&boss){ const base=phaseStartByName(boss,ab.anchor); return raw.map(t=>base+t); } return raw; }
+
+let tlBossId=null, tlView={pps:null,startT:0}, tlData=null;
+
 function renderTimeline(boss){
   const abilities=boss?boss.abilities||[]:[];
-  if(!abilities.length) return '<div class="tl2-empty">No abilities yet \u2014 add some in the editor.</div>';
-  const PPS=8, ROWH=30, AX=26;
+  if(!abilities.length){ tlData=null; return '<div class="tl2-empty">No abilities yet \u2014 add some in the editor.</div>'; }
+  const ROWH=30, AX=26;
   let maxT=0;
-  abilities.forEach(ab=>{ const d=Number(ab.duration)||0; abilityTimes(ab).forEach(t=>{ if(t+d>maxT) maxT=t+d; }); });
+  abilities.forEach(ab=>{ const d=Number(ab.duration)||0; effTimes(ab,boss).forEach(t=>{ if(t+d>maxT) maxT=t+d; }); });
   (boss.phases||[]).forEach(p=>{ if((p.time||0)>maxT) maxT=p.time||0; });
-  const spanT=maxT+30;
-  const trackW=Math.max(560, Math.ceil(spanT*PPS)+40);
-  // sorted phases -> header bands + divider lines
   const phs=(boss.phases||[]).filter(p=>p&&(p.name||p.time!=null)).slice().sort((a,b)=>(a.time||0)-(b.time||0));
-  const PH = phs.length ? 28 : 6;
-  let bands="", plines="";
-  phs.forEach((p,i)=>{ const x=(p.time||0)*PPS; const xEnd=(i<phs.length-1?(phs[i+1].time||0):spanT)*PPS;
-    bands+='<div class="tl2-phaseband" style="left:'+x+'px;width:'+Math.max(0,xEnd-x)+'px"><span>'+escapeHtml(p.name||"")+'</span></div>';
-    if((p.time||0)>0) plines+='<div class="tl2-phase" style="left:'+x+'px"></div>';
-  });
-  // gridlines + bottom axis labels every 30s
-  let grid="", axis="";
-  for(let s=0;s<=spanT;s+=30){ const x=s*PPS; grid+='<div class="tl2-grid" style="left:'+x+'px"></div>'; axis+='<div class="tl2-ticklabel" style="left:'+x+'px">'+fmtTime(s)+'</div>'; }
-  // names + rows with duration bars
-  let names='<div class="tl2-corner" style="height:'+PH+'px"></div>', rows="";
-  abilities.forEach((ab,ai)=>{
-    const col=laneColor(ai), d=Number(ab.duration)||0;
-    const nameStyle='height:'+ROWH+'px'+(ai===state.abilityIndex?'':';color:'+col);
-    names+='<div class="tl2-name'+(ai===state.abilityIndex?" active":"")+'" data-ai="'+ai+'" style="'+nameStyle+'" title="'+escapeHtml(ab.name||"")+'">'+escapeHtml(ab.name||"(unnamed)")+'</div>';
-    let marks="";
-    abilityTimes(ab).forEach(t=>{
-      const isA=(ai===state.abilityIndex && t===state.occTime);
-      const w=Math.max(5, d*PPS);
-      marks+='<button class="tl2-mark'+(isA?" active":"")+'" data-ai="'+ai+'" data-t="'+t+'" style="left:'+(t*PPS)+'px" title="'+escapeHtml(ab.name||"")+' \u00b7 '+fmtTime(t)+(d?' \u00b7 '+d+'s':'')+'"><span class="bar" style="width:'+w+'px;--c:'+col+'"></span><span class="lbl">'+fmtTime(t)+'</span></button>';
-    });
-    rows+='<div class="tl2-row" style="height:'+ROWH+'px">'+marks+'</div>';
-  });
+  const PH=phs.length?28:6;
+  const spanT=Math.max(30, maxT+30);
+  if(boss.id!==tlBossId){ tlBossId=boss.id; tlView={pps:null,startT:0}; }
+  tlData={abilities, phases:phs, spanT, PH, ROWH, AX, boss};
+  const totalH=PH + abilities.length*ROWH + AX;
+  let names='<div class="tl2-corner" style="height:'+PH+'px"></div>';
+  abilities.forEach((ab,ai)=>{ const col=laneColor(ai); const st='height:'+ROWH+'px'+(ai===state.abilityIndex?'':';color:'+col);
+    names+='<div class="tl2-name'+(ai===state.abilityIndex?" active":"")+'" data-ai="'+ai+'" style="'+st+'" title="'+escapeHtml(ab.name||"")+'">'+escapeHtml(ab.name||"(unnamed)")+'</div>'; });
+  names+='<div class="tl2-corner" style="height:'+AX+'px;border-bottom:0"></div>';
   return '<div class="tl2-wrap"><div class="tl2">'+
-    '<div class="tl2-names">'+names+'<div class="tl2-corner" style="height:'+AX+'px;border-bottom:0"></div></div>'+
-    '<div class="tl2-track"><div class="tl2-track-inner" style="width:'+trackW+'px">'+
-      '<div class="tl2-bg">'+grid+plines+'</div>'+
-      '<div class="tl2-phasebar" style="height:'+PH+'px">'+bands+'</div>'+
-      rows+
-      '<div class="tl2-axis" style="height:'+AX+'px">'+axis+'</div>'+
-    '</div></div></div></div>';
+    '<div class="tl2-names">'+names+'</div>'+
+    '<div class="tl2-viewport" style="height:'+totalH+'px"><div class="tl2-inner"></div></div>'+
+    '</div></div>'+
+    '<div class="tl2-hint">Ctrl + scroll to zoom \u00b7 right-drag to pan \u00b7 drag across to zoom a range \u00b7 double-click to reset</div>';
+}
+function niceStep(pps){ const target=90/pps; const opts=[5,10,15,20,30,60,120,180,300,600,900,1200]; for(const o of opts){ if(o>=target) return o; } return 1800; }
+function drawTrack(){
+  const wrap=$("#timelineSlot"); if(!wrap||!tlData) return;
+  const vp=wrap.querySelector(".tl2-viewport"); if(!vp) return;
+  const inner=vp.querySelector(".tl2-inner"); if(!inner) return;
+  const W=vp.clientWidth||600;
+  const A=tlData.abilities, phs=tlData.phases, spanT=tlData.spanT, PH=tlData.PH, ROWH=tlData.ROWH, AX=tlData.AX, boss=tlData.boss;
+  const fit=spanT>0?W/spanT:8;
+  if(tlView.pps==null) tlView.pps=fit;
+  if(tlView.pps<fit) tlView.pps=fit;
+  if(tlView.pps>80) tlView.pps=80;
+  const pps=tlView.pps;
+  const maxStart=Math.max(0, spanT - W/pps);
+  if(tlView.startT<0) tlView.startT=0;
+  if(tlView.startT>maxStart) tlView.startT=maxStart;
+  const startT=tlView.startT, xOf=t=>(t-startT)*pps, t1v=startT + W/pps;
+  const step=niceStep(pps);
+  let grid="", axis="";
+  for(let s=Math.floor(startT/step)*step;s<=t1v;s+=step){ if(s<0) continue; const x=xOf(s); grid+='<div class="tl2-grid" style="left:'+x+'px"></div>'; axis+='<div class="tl2-ticklabel" style="left:'+x+'px">'+fmtTime(s)+'</div>'; }
+  let bands="", plines="";
+  phs.forEach((p,i)=>{ const s=p.time||0, e=(i<phs.length-1?(phs[i+1].time||0):spanT); const x=xOf(s), xe=xOf(e); const l=Math.max(0,x), r=Math.min(W,xe);
+    if(r>l) bands+='<div class="tl2-phaseband" style="left:'+l+'px;width:'+(r-l)+'px"><span>'+escapeHtml(p.name||"")+'</span></div>';
+    if(s>0 && x>=0 && x<=W) plines+='<div class="tl2-phase" style="left:'+x+'px"></div>'; });
+  let rows="";
+  A.forEach((ab,ai)=>{ const col=laneColor(ai), d=Number(ab.duration)||0, top=PH+ai*ROWH; let marks="";
+    effTimes(ab,boss).forEach(t=>{ const x=xOf(t); if(x<-6||x>W+50) return; const isA=(ai===state.abilityIndex && t===state.occTime); const w=Math.max(5,d*pps);
+      marks+='<button class="tl2-mark'+(isA?" active":"")+'" data-ai="'+ai+'" data-t="'+t+'" style="left:'+x+'px" title="'+escapeHtml(ab.name||"")+' \u00b7 '+fmtTime(t)+(d?' \u00b7 '+d+'s':'')+'"><span class="bar" style="width:'+w+'px;--c:'+col+'"></span><span class="lbl">'+fmtTime(t)+'</span></button>'; });
+    rows+='<div class="tl2-row" style="top:'+top+'px;height:'+ROWH+'px">'+marks+'</div>'; });
+  inner.innerHTML='<div class="tl2-bg">'+grid+plines+'</div>'+
+    '<div class="tl2-phasebar" style="height:'+PH+'px">'+bands+'</div>'+rows+
+    '<div class="tl2-axis" style="height:'+AX+'px">'+axis+'</div>';
+}
+function zoomAt(vp,clientX,factor){ if(!tlData) return; const rect=vp.getBoundingClientRect(); const cx=clientX-rect.left; const W=vp.clientWidth; const fit=tlData.spanT>0?W/tlData.spanT:8; const tAt=tlView.startT+cx/tlView.pps; let np=tlView.pps*factor; np=Math.max(fit,Math.min(80,np)); tlView.pps=np; tlView.startT=tAt-cx/np; drawTrack(); }
+function zoomToRange(vp,l,r){ if(!tlData) return; const W=vp.clientWidth; const t0=tlView.startT+l/tlView.pps, t1=tlView.startT+r/tlView.pps; const dt=Math.max(1,t1-t0); const fit=tlData.spanT>0?W/tlData.spanT:8; let np=Math.max(fit,Math.min(80,W/dt)); tlView.pps=np; tlView.startT=t0; drawTrack(); }
+function attachTimelineControls(vp){
+  let mode=null, downX=0, downClientX=0, startTDown=0, moved=false, selBox=null;
+  vp.addEventListener("contextmenu",e=>e.preventDefault());
+  vp.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault(); zoomAt(vp,e.clientX,e.deltaY<0?1.15:1/1.15); },{passive:false});
+  vp.addEventListener("dblclick",()=>{ tlView.pps=null; tlView.startT=0; drawTrack(); });
+  vp.addEventListener("pointerdown",e=>{ const rect=vp.getBoundingClientRect(); downX=e.clientX-rect.left; downClientX=e.clientX; startTDown=tlView.startT; moved=false;
+    if(e.button===2){ mode="pan"; vp.setPointerCapture(e.pointerId); vp.classList.add("grabbing"); }
+    else if(e.button===0){ mode="select"; vp.setPointerCapture(e.pointerId); } });
+  vp.addEventListener("pointermove",e=>{ if(!mode) return; if(Math.abs(e.clientX-downClientX)>3) moved=true; const rect=vp.getBoundingClientRect(); const x=e.clientX-rect.left;
+    if(mode==="pan"){ const dx=e.clientX-downClientX; tlView.startT=startTDown-dx/tlView.pps; drawTrack(); }
+    else if(mode==="select" && moved){ if(!selBox){ selBox=document.createElement("div"); selBox.className="tl2-selbox"; vp.appendChild(selBox); } const l=Math.min(x,downX), w=Math.abs(x-downX); selBox.style.left=l+"px"; selBox.style.width=w+"px"; } });
+  vp.addEventListener("pointerup",e=>{
+    if(mode==="select"){
+      if(moved && selBox){ const rect=vp.getBoundingClientRect(); const x=e.clientX-rect.left; zoomToRange(vp, Math.min(x,downX), Math.max(x,downX)); }
+      else { const m=e.target.closest?e.target.closest(".tl2-mark"):null; if(m){ state.abilityIndex=Number(m.dataset.ai); state.occTime=Number(m.dataset.t); render(); } }
+    }
+    if(selBox){ selBox.remove(); selBox=null; } vp.classList.remove("grabbing"); mode=null; });
 }
 function render(){
   renderSideNav();
@@ -679,12 +718,11 @@ function render(){
   const boss=currentBoss();
   const abilities=boss?boss.abilities||[]:[];
 
-  // build one timeline node per (ability, time) occurrence, sorted by time
+  // build one node per (ability, occurrence) using effective (phase-anchored) times
   const nodes=[];
-  abilities.forEach((ab,ai)=>{ abilityTimes(ab).forEach(t=>nodes.push({ai:ai,t:t,ab:ab})); });
+  abilities.forEach((ab,ai)=>{ effTimes(ab,boss).forEach(t=>nodes.push({ai:ai,t:t,ab:ab})); });
   nodes.sort((x,y)=>x.t-y.t);
 
-  // resolve the active node
   let active=nodes.findIndex(n=>n.ai===state.abilityIndex && n.t===state.occTime);
   if(active<0){ if(nodes.length){ active=0; state.abilityIndex=nodes[0].ai; state.occTime=nodes[0].t; } else { state.abilityIndex=0; state.occTime=null; } }
   const ability=abilities[state.abilityIndex]||{};
@@ -703,8 +741,9 @@ function render(){
     : '<div class="gif-wrap"><div class="gif-empty">'+(gifUrl?'GIF URL must start with http(s)://':'No GIF set for this ability.<br>Add a <code>gif</code> URL in the editor.')+'</div></div>';
 
   $("#timelineSlot").innerHTML = renderTimeline(boss);
-  $("#timelineSlot").querySelectorAll(".tl2-mark").forEach(m=>m.addEventListener("click",()=>{ state.abilityIndex=Number(m.dataset.ai); state.occTime=Number(m.dataset.t); render(); }));
-  $("#timelineSlot").querySelectorAll(".tl2-name").forEach(n=>n.addEventListener("click",()=>{ const ai=Number(n.dataset.ai); const b2=currentBoss(); const ab=b2&&(b2.abilities||[])[ai]; state.abilityIndex=ai; state.occTime=ab?abilityTimes(ab)[0]:null; render(); }));
+  drawTrack();
+  { const vp=$("#timelineSlot").querySelector(".tl2-viewport"); if(vp) attachTimelineControls(vp); }
+  $("#timelineSlot").querySelectorAll(".tl2-name").forEach(n=>n.addEventListener("click",()=>{ const ai=Number(n.dataset.ai); const b2=currentBoss(); const ab=b2&&(b2.abilities||[])[ai]; state.abilityIndex=ai; state.occTime=ab?effTimes(ab,b2)[0]:null; render(); }));
 
   const info=ability.info||{}; const byKey={};
   ROLE_META.forEach(r=>{ const c=info[r.key]; if(c&&!(Array.isArray(c)&&c.length===0)) byKey[r.key]='<div class="panel '+r.cls+'"><h3><span class="rdot"></span>'+r.label+'</h3>'+roleContentHtml(c)+'</div>'; });
@@ -762,13 +801,16 @@ function field(label,inner){ return '<div class="field"><label>'+label+'</label>
 function abilityBlock(a,ai){
   const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
-  return '<details class="abil"><summary><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
+  const boss=editData[r].bosses[b];
+  const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.name)+'"'+(a.anchor===p.name?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
+  return '<details class="abil"><summary><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(a.anchor?" after "+escapeHtml(a.anchor):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
       field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
       field("Duration (seconds, optional)",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">')+
       field("Phase label (optional)",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
     '</div>'+
+    field("Anchor times to a phase (optional)",'<select '+D+' data-k="anchor">'+anchorOpts+'</select><div class="det">When anchored, the Times above are counted <strong>from that phase\u2019s start</strong> instead of from the pull. Move the phase\u2019s start time (in the boss\u2019s Phase timings) to shift all its abilities together \u2014 handy for health-threshold phases.</div>')+
     field("Video override URL (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
     field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
     field("GIF URL (optional)",'<input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'">')+
@@ -836,6 +878,7 @@ function renderEditor(){
 function applyField(obj,k,val,scope){
   if(k==="times"){ obj.times=parseTimes(val); delete obj.time; delete obj.videoStart; }
   else if(k==="duration"){ const n=parseInt(val,10); if(!n||n<0) delete obj.duration; else obj.duration=n; }
+  else if(k==="anchor"){ if(!val) delete obj.anchor; else obj.anchor=val; }
   else if(k==="videoOffset"){ const n=parseInt(val,10); obj.videoOffset=isNaN(n)?0:n; }
   else if(k==="videourl"){
     if(!val.trim()){ if(scope==="ability"){ delete obj.platform; delete obj.videoId; } else { obj.videoId=""; } }
