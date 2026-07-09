@@ -154,7 +154,6 @@
   .ph-row .ph-name, .ph-row .ph-time{background:var(--bg-2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 11px; font-family:var(--body); font-size:14px; width:auto;}
   .ph-row .ph-name:focus, .ph-row .ph-time:focus{outline:none; border-color:var(--orange-bright);}
   .ph-row .ph-name{flex:1; min-width:0;} .ph-row .ph-time{width:96px; flex:none;}
-  .abil[draggable="true"]{cursor:default;}
   .abil.dragging{opacity:.4;} .abil.drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px;}
   .section-title{font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:1.5px; color:var(--muted); margin-bottom:18px; text-transform:uppercase;}
   .timeline{display:flex; gap:0; overflow-x:auto; padding:6px 2px 20px;}
@@ -874,7 +873,7 @@ function abilityBlock(a,ai){
   const boss=editData[r].bosses[b];
   const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.id)+'"'+(a.anchor===p.id?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
   const anchorPhase=a.anchor?(boss.phases||[]).find(p=>p&&p.id===a.anchor):null;
-  return '<details class="abil" draggable="true" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
+  return '<details class="abil" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" draggable="true" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
       field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
@@ -915,8 +914,8 @@ function bossEditorHtml(){
 }
 function phaseListHtml(r,bi,b){
   const phs=b.phases||[];
-  const rowsH=phs.map((p,pi)=>'<div class="ph-row" draggable="true" data-phaserow data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'">'+
-    '<span class="grip" title="Drag to reorder">\u2630</span>'+
+  const rowsH=phs.map((p,pi)=>'<div class="ph-row" data-phaserow data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'">'+
+    '<span class="grip" draggable="true" title="Drag to reorder">\u2630</span>'+
     '<input class="ph-name" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" data-k="phaseName" value="'+escapeHtml(p.name||"")+'" placeholder="Phase name">'+
     '<input class="ph-time" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" data-k="phaseTime" value="'+secToClock(p.time||0)+'" placeholder="mm:ss">'+
     '<button class="btn danger ed-x" data-action="delphase" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" title="Remove">\u00d7</button>'+
