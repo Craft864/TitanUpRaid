@@ -696,9 +696,11 @@ function render(){
     '<h2>'+escapeHtml(boss?boss.name||"":"No boss data")+'</h2>'+
     '<p class="overview">'+escapeHtml(boss?boss.overview||"":"")+'</p>';
 
-  $("#gifSlot").innerHTML = ability.gif
-    ? '<div class="gif-wrap"><img src="'+ability.gif+'" alt="'+escapeHtml(ability.name||"")+' mechanic"></div>'
-    : '<div class="gif-wrap"><div class="gif-empty">No GIF set for this ability.<br>Add a <code>gif</code> URL in the editor.</div></div>';
+  const gifUrl=(ability.gif||"").trim();
+  const gifOk=/^https?:\/\//i.test(gifUrl);
+  $("#gifSlot").innerHTML = gifOk
+    ? '<div class="gif-wrap"><img src="'+escapeHtml(gifUrl)+'" alt="'+escapeHtml(ability.name||"")+' mechanic"></div>'
+    : '<div class="gif-wrap"><div class="gif-empty">'+(gifUrl?'GIF URL must start with http(s)://':'No GIF set for this ability.<br>Add a <code>gif</code> URL in the editor.')+'</div></div>';
 
   $("#timelineSlot").innerHTML = renderTimeline(boss);
   $("#timelineSlot").querySelectorAll(".tl2-mark").forEach(m=>m.addEventListener("click",()=>{ state.abilityIndex=Number(m.dataset.ai); state.occTime=Number(m.dataset.t); render(); }));
