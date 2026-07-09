@@ -62,7 +62,7 @@
   .nav-boss.active{color:#fff; background:linear-gradient(90deg,rgba(224,128,48,.28),rgba(145,71,255,.16));}
   .nav-boss[draggable="true"]{cursor:grab;}
   .nav-empty{color:var(--muted-2); font-size:12px; padding:6px 10px; font-style:italic;}
-  .grip{color:var(--muted-2); font-size:12px; flex:none;}
+  .grip{color:var(--muted-2); font-size:12px; flex:none; cursor:grab;}
   .drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px; border-radius:8px;}
   .dragging{opacity:.4;}
   .ed-raid{margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);}
@@ -148,7 +148,13 @@
   .tl2-selbox{position:absolute; top:0; bottom:0; background:rgba(224,128,48,.16); border-left:1px solid var(--orange-bright); border-right:1px solid var(--orange-bright); pointer-events:none; z-index:6;}
   .tl2-empty{padding:22px; color:var(--muted-2); font-size:13px; text-align:center;}
   .tl2-hint{margin-top:8px; font-size:11.5px; color:var(--muted-2);}
-  .ph-row{display:flex; gap:6px; margin-bottom:6px;} .ph-name{flex:1;} .ph-time{width:82px;}
+  .ph-row{display:flex; gap:6px; margin-bottom:6px; align-items:center;}
+  .ph-row.dragging{opacity:.4;} .ph-row.drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px; border-radius:8px;}
+  .ph-name, .ph-time{background:var(--bg-2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 11px; font-family:var(--body); font-size:14px;}
+  .ph-name:focus, .ph-time:focus{outline:none; border-color:var(--orange-bright);}
+  .ph-name{flex:1; min-width:0;} .ph-time{width:96px;}
+  .abil[draggable="true"]{cursor:default;}
+  .abil.dragging{opacity:.4;} .abil.drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px;}
   .section-title{font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:1.5px; color:var(--muted); margin-bottom:18px; text-transform:uppercase;}
   .timeline{display:flex; gap:0; overflow-x:auto; padding:6px 2px 20px;}
   .timeline::-webkit-scrollbar{height:8px;}
@@ -826,7 +832,7 @@ function abilityBlock(a,ai){
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
   const boss=editData[r].bosses[b];
   const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.name)+'"'+(a.anchor===p.name?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
-  return '<details class="abil"><summary><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(a.anchor?" after "+escapeHtml(a.anchor):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
+  return '<details class="abil" draggable="true" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(a.anchor?" after "+escapeHtml(a.anchor):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
       field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
@@ -862,12 +868,13 @@ function bossEditorHtml(){
     field("Video offset (seconds) \u2014 where the pull happens in the video",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'"><div class="det">If the pull is a few seconds into the video, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.</div>')+
     field("Raid plan embed (raidstrats.gg, optional)",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(b.raidplanUrl||"")+'"><div class="det">On raidstrats.gg open your plan, click <strong>Share \u2192 Embed</strong>, and paste the URL it gives you here (must be an https://raidstrats.gg link). Leave blank to hide this section on the boss page.</div>')+
     field("Phase timings (optional \u2014 shown across the top of the timeline)", phaseListHtml(r,bi,b))+
-    '<div class="field"><label>Abilities / timeline (ordered by time)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
+    '<div class="field"><label>Abilities / timeline (drag ☰ to reorder)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
     '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
 }
 function phaseListHtml(r,bi,b){
   const phs=b.phases||[];
-  const rowsH=phs.map((p,pi)=>'<div class="ph-row">'+
+  const rowsH=phs.map((p,pi)=>'<div class="ph-row" draggable="true" data-phaserow data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'">'+
+    '<span class="grip" title="Drag to reorder">\u2630</span>'+
     '<input class="ph-name" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" data-k="phaseName" value="'+escapeHtml(p.name||"")+'" placeholder="Phase name">'+
     '<input class="ph-time" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" data-k="phaseTime" value="'+secToClock(p.time||0)+'" placeholder="mm:ss">'+
     '<button class="btn danger ed-x" data-action="delphase" data-r="'+r+'" data-b="'+bi+'" data-p="'+pi+'" title="Remove">\u00d7</button>'+
@@ -955,8 +962,52 @@ overlay.addEventListener("click",function(e){
   else if(act==="save"){ saveEditor(); }
 });
 
+let phaseDrag=null, abilDrag=null;
+overlay.addEventListener("dragstart",function(e){
+  const ph=e.target.closest("[data-phaserow]");
+  if(ph){ phaseDrag={r:Number(ph.dataset.r), b:Number(ph.dataset.b), p:Number(ph.dataset.p)}; ph.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",""); return; }
+  const ab=e.target.closest("[data-abilrow]");
+  if(ab){ abilDrag={r:Number(ab.dataset.r), b:Number(ab.dataset.b), a:Number(ab.dataset.a)}; ab.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",""); return; }
+});
+overlay.addEventListener("dragover",function(e){
+  if(phaseDrag){ const ph=e.target.closest("[data-phaserow]"); if(ph){ e.preventDefault(); overlay.querySelectorAll(".drag-target").forEach(x=>x.classList.remove("drag-target")); ph.classList.add("drag-target"); } }
+  else if(abilDrag){ const ab=e.target.closest("[data-abilrow]"); if(ab){ e.preventDefault(); overlay.querySelectorAll(".drag-target").forEach(x=>x.classList.remove("drag-target")); ab.classList.add("drag-target"); } }
+});
+overlay.addEventListener("drop",function(e){
+  if(phaseDrag){
+    const ph=e.target.closest("[data-phaserow]");
+    if(ph){ e.preventDefault();
+      const r=Number(ph.dataset.r), bi=Number(ph.dataset.b), targetP=Number(ph.dataset.p);
+      if(r===phaseDrag.r && bi===phaseDrag.b && targetP!==phaseDrag.p){
+        const phs=editData[r].bosses[bi].phases;
+        const [moved]=phs.splice(phaseDrag.p,1);
+        phs.splice(targetP,0,moved);
+        renderEditor();
+      }
+    }
+    phaseDrag=null; return;
+  }
+  if(abilDrag){
+    const ab=e.target.closest("[data-abilrow]");
+    if(ab){ e.preventDefault();
+      const r=Number(ab.dataset.r), bi=Number(ab.dataset.b), targetA=Number(ab.dataset.a);
+      if(r===abilDrag.r && bi===abilDrag.b && targetA!==abilDrag.a){
+        const abs=editData[r].bosses[bi].abilities;
+        const [moved]=abs.splice(abilDrag.a,1);
+        abs.splice(targetA,0,moved);
+        renderEditor();
+      }
+    }
+    abilDrag=null; return;
+  }
+});
+overlay.addEventListener("dragend",function(){
+  overlay.querySelectorAll(".dragging,.drag-target").forEach(x=>x.classList.remove("dragging","drag-target"));
+  phaseDrag=null; abilDrag=null;
+});
+
 function saveEditor(){
-  editData.forEach(raid=>{ raid.bosses=raid.bosses||[]; raid.bosses.forEach(b=>{ b.platform=b.platform||"youtube"; (b.abilities||[]).sort((x,y)=>(abilityTimes(x)[0]||0)-(abilityTimes(y)[0]||0)); }); });
+  editData.forEach(raid=>{ raid.bosses=raid.bosses||[]; raid.bosses.forEach(b=>{ b.platform=b.platform||"youtube"; }); });
   RAID_DATA=editData; ensureIds(); persist();
   if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
   state.abilityIndex=0; currentLoadedId=null; teardownPlayers();
