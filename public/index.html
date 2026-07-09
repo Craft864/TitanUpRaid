@@ -749,7 +749,7 @@ function attachTimelineControls(vp){
   vp.addEventListener("pointerup",e=>{
     if(mode==="select"){
       if(moved && selBox){ const rect=vp.getBoundingClientRect(); const x=e.clientX-rect.left; zoomToRange(vp, Math.min(x,downX), Math.max(x,downX)); }
-      else { const m=e.target.closest?e.target.closest(".tl2-mark"):null; if(m){ state.abilityIndex=Number(m.dataset.ai); state.occTime=Number(m.dataset.t); render(); } }
+      else { const real=document.elementFromPoint(e.clientX,e.clientY); const m=real&&real.closest?real.closest(".tl2-mark"):null; if(m){ state.abilityIndex=Number(m.dataset.ai); state.occTime=Number(m.dataset.t); render(); } }
     }
     if(selBox){ selBox.remove(); selBox=null; } vp.classList.remove("grabbing"); mode=null; });
 }
