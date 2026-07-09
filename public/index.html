@@ -984,7 +984,7 @@ overlay.addEventListener("click",function(e){
   else if(act==="addraid"){ editData.push(blankRaid()); editRaidIdx=editData.length-1; editBossIdx=-1; renderEditor(); }
   else if(act==="delraid"){ const ri=Number(btn.dataset.r); editData.splice(ri,1); if(!editData.length) editData=[blankRaid()]; editRaidIdx=Math.min(editRaidIdx,editData.length-1); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
   else if(act==="addabil"){ const b=editData[editRaidIdx].bosses[editBossIdx]; b.abilities=b.abilities||[]; b.abilities.push(blankAbility()); renderEditor(); }
-  else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({name:"New phase", time:0}); renderEditor(); }
+  else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({name:"", time:0}); renderEditor(); }
   else if(act==="delphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b), p=Number(btn.dataset.p); editData[ri].bosses[bi].phases.splice(p,1); renderEditor(); }
   else if(act==="delabil"){ editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1); renderEditor(); }
   else if(act==="export"){ exportData(); }
