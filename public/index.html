@@ -225,6 +225,9 @@
   .history-row:last-child{border-bottom:0;}
   .history-when{flex:1; font-size:13.5px; color:var(--text);}
   .history-who{color:var(--muted-2); font-size:12px; display:block; margin-top:2px;}
+  .history-bosses{padding:2px 0 10px 0;}
+  .history-boss-row{display:flex; align-items:center; gap:10px; padding:8px 0 8px 16px; border-left:2px solid var(--border);}
+  .history-boss-name{flex:1; font-size:13px; color:var(--muted);}
   .editor{background:var(--panel-solid); border:1px solid var(--border); border-radius:16px; width:min(1100px,100%); max-height:100%; display:flex; flex-direction:column; overflow:hidden;}
   .editor-head{display:flex; align-items:center; gap:12px; padding:15px 20px; border-bottom:1px solid var(--border);}
   .editor-head h2{font-family:var(--display); font-weight:700; font-size:16px; margin:0;}
@@ -456,7 +459,17 @@ async function uploadImage(file){
   const r=await fetch("/api/upload",{method:"POST",credentials:"same-origin",headers:{"Content-Type":file.type||"application/octet-stream"},body:file});
   if(!r.ok){ let msg="Upload failed."; try{ const j=await r.json(); if(j&&j.error) msg=j.error; }catch(e){} throw new Error(msg); }
   const j=await r.json();
+  sessionUploads.push(j.url); // tracked so a cancelled edit can clean up anything never actually saved
   return j.url;
+}
+async function latestHistoryTs(){
+  try{
+    const r=await fetch("/api/history",{credentials:"same-origin"});
+    if(!r.ok) return null;
+    const j=await r.json();
+    const list=j.history||[];
+    return list.length?list[0].ts:null;
+  }catch(e){ return null; }
 }
 function pickAndUpload(btn,multiple,onDone){
   const inp=document.createElement("input"); inp.type="file"; inp.accept="image/png,image/jpeg,image/gif,image/webp"; if(multiple) inp.multiple=true;
@@ -990,6 +1003,8 @@ function blankAbility(){ return {name:"New Ability", time:0, desc:"", gif:"", in
 function blankRaid(){ return {id:"raid_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", bosses:[]}; }
 
 let editData=null, editRaidIdx=0, editBossIdx=-1;
+let sessionUploads=[]; // images uploaded during this editor session, for cleanup if it's cancelled
+let editorOpenedAtTs; // latest history ts as of opening the editor, for save-conflict detection
 const overlay=$("#editorOverlay");
 
 function openEditor(){
@@ -997,10 +1012,16 @@ function openEditor(){
   if(!editData.length) editData=[blankRaid()];
   if(editRaidIdx>=editData.length) editRaidIdx=0;
   editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1;
+  sessionUploads=[];
+  editorOpenedAtTs=undefined;
+  latestHistoryTs().then(ts=>{ editorOpenedAtTs=ts; });
   renderEditor();
   overlay.classList.add("show"); document.body.classList.add("editor-open");
 }
-function closeEditor(){ overlay.classList.remove("show"); document.body.classList.remove("editor-open"); }
+function closeEditor(){
+  if(sessionUploads.length){ sessionUploads.forEach(deleteImage); sessionUploads=[]; }
+  overlay.classList.remove("show"); document.body.classList.remove("editor-open");
+}
 function field(label,inner,help){
   const lbl=help?'<span class="field-label-help" tabindex="0" data-tip="'+escapeHtml(help)+'">'+label+'</span>':label;
   return '<div class="field"><label>'+lbl+'</label>'+inner+'</div>';
@@ -1276,11 +1297,21 @@ overlay.addEventListener("paste",async function(e){
   }catch(err){ alert("Couldn’t upload pasted image: "+(err&&err.message?err.message:"unknown error")); }
 });
 
-function saveEditor(){
+async function saveEditor(){
   editData.forEach(raid=>{ raid.bosses=raid.bosses||[]; raid.bosses.forEach(b=>{ b.platform=b.platform||"youtube"; }); });
-  RAID_DATA=editData; ensureIds(); persist();
+  if(editorOpenedAtTs!==undefined){
+    const nowTs=await latestHistoryTs();
+    if(nowTs!==editorOpenedAtTs){
+      const proceed=confirm("Someone else saved changes to this guide while you were editing. Their version is safely kept in History, but saving now will make yours the new current version. Continue?");
+      if(!proceed) return;
+    }
+  }
+  RAID_DATA=editData; ensureIds();
+  await persist();
+  editorOpenedAtTs=await latestHistoryTs();
   if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
   state.abilityIndex=0; currentLoadedId=null; teardownPlayers();
+  sessionUploads=[];
   closeEditor(); render();
 }
 function exportData(){
@@ -1299,6 +1330,7 @@ function importData(){
 
 const historyOverlay=$("#historyOverlay");
 function closeHistory(){ historyOverlay.classList.remove("show"); }
+function historyRowWhen(row){ return row.querySelector(".history-when").firstChild.textContent; }
 async function openHistory(){
   let list=[];
   try{
@@ -1308,7 +1340,14 @@ async function openHistory(){
     list=j.history||[];
   }catch(e){ alert("Couldn\u2019t load history."); return; }
   const rows=list.length
-    ? list.map(h=>'<div class="history-row"><span class="history-when">'+escapeHtml(new Date(h.ts).toLocaleString())+(h.editor?'<span class="history-who">by '+escapeHtml(h.editor)+'</span>':'')+'</span><button class="btn danger" data-ts="'+h.ts+'">Restore</button></div>').join("")
+    ? list.map(h=>
+        '<div class="history-row" data-ts="'+h.ts+'">'+
+          '<span class="history-when">'+escapeHtml(new Date(h.ts).toLocaleString())+(h.editor?'<span class="history-who">by '+escapeHtml(h.editor)+'</span>':'')+'</span>'+
+          '<button class="btn" data-action="browseBosses" data-ts="'+h.ts+'">Browse bosses</button>'+
+          '<button class="btn danger" data-action="restoreAll" data-ts="'+h.ts+'">Restore all</button>'+
+        '</div>'+
+        '<div class="history-bosses" id="hb'+h.ts+'" style="display:none"></div>'
+      ).join("")
     : '<p class="det" style="padding:10px 0">No saved history yet \u2014 it starts recording from your next save.</p>';
   historyOverlay.innerHTML =
     '<div class="history-modal">'+
@@ -1317,20 +1356,71 @@ async function openHistory(){
     '</div>';
   historyOverlay.classList.add("show");
   $("#historyCloseBtn").addEventListener("click",closeHistory);
-  historyOverlay.querySelectorAll("[data-ts]").forEach(btn=>btn.addEventListener("click",async()=>{
-    const when=btn.closest(".history-row").querySelector(".history-when").firstChild.textContent;
-    if(!confirm("Restore the guide to the version from "+when+"? Your current data will be saved as a new history entry first, so this can be undone.")) return;
-    btn.disabled=true; const origText=btn.textContent; btn.textContent="Restoring\u2026";
+}
+historyOverlay.addEventListener("click",async function(e){
+  const restoreAllBtn=e.target.closest('[data-action="restoreAll"]');
+  const browseBtn=e.target.closest('[data-action="browseBosses"]');
+  const restoreBossBtn=e.target.closest('[data-action="restoreBoss"]');
+  if(restoreAllBtn){
+    const when=historyRowWhen(restoreAllBtn.closest(".history-row"));
+    if(!confirm("Restore the entire guide to the version from "+when+"? Your current data will be saved as a new history entry first, so this can be undone.")) return;
+    restoreAllBtn.disabled=true; const origText=restoreAllBtn.textContent; restoreAllBtn.textContent="Restoring\u2026";
     try{
-      const r=await fetch("/api/history",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({ts:Number(btn.dataset.ts)})});
+      const r=await fetch("/api/history",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({ts:Number(restoreAllBtn.dataset.ts)})});
       if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||"restore failed"); }
       await loadFromServer();
       if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
       state.abilityIndex=0; state.occTime=null; currentLoadedId=null; teardownPlayers();
       closeHistory(); closeEditor(); render();
-    }catch(err){ alert("Couldn\u2019t restore: "+(err&&err.message?err.message:"unknown error")); btn.disabled=false; btn.textContent=origText; }
-  }));
-}
+    }catch(err){ alert("Couldn\u2019t restore: "+(err&&err.message?err.message:"unknown error")); restoreAllBtn.disabled=false; restoreAllBtn.textContent=origText; }
+    return;
+  }
+  if(browseBtn){
+    const ts=browseBtn.dataset.ts;
+    const box=document.getElementById("hb"+ts);
+    if(!box) return;
+    if(box.style.display!=="none"){ box.style.display="none"; return; }
+    box.style.display=""; box.innerHTML='<p class="det" style="padding:8px 0">Loading\u2026</p>';
+    try{
+      const r=await fetch("/api/history?ts="+encodeURIComponent(ts),{credentials:"same-origin"});
+      if(!r.ok) throw new Error();
+      const snapshotData=await r.json();
+      const items=[];
+      (snapshotData||[]).forEach(rd=>(rd.bosses||[]).forEach(b=>{
+        items.push('<div class="history-boss-row"><span class="history-boss-name">'+escapeHtml(rd.name||"(unnamed raid)")+' \u2014 '+escapeHtml(b.name||"(unnamed)")+(b.difficulty?" ("+escapeHtml(b.difficulty)+")":"")+'</span><button class="btn" data-action="restoreBoss" data-ts="'+ts+'" data-raidid="'+escapeHtml(rd.id||"")+'" data-raidname="'+escapeHtml(rd.name||"")+'" data-bossid="'+escapeHtml(b.id||"")+'" data-bossname="'+escapeHtml(b.name||"(unnamed)")+'">Restore this boss</button></div>');
+      }));
+      box.innerHTML = items.length ? items.join("") : '<p class="det" style="padding:8px 0">No bosses in this version.</p>';
+    }catch(err){ box.innerHTML='<p class="det" style="padding:8px 0">Couldn\u2019t load this version.</p>'; }
+    return;
+  }
+  if(restoreBossBtn){
+    const ts=restoreBossBtn.dataset.ts, raidId=restoreBossBtn.dataset.raidid, raidName=restoreBossBtn.dataset.raidname, bossId=restoreBossBtn.dataset.bossid, bossName=restoreBossBtn.dataset.bossname;
+    const when=historyRowWhen(restoreBossBtn.closest(".history-row")||document.querySelector('.history-row[data-ts="'+ts+'"]'));
+    if(!confirm('Restore just \u201c'+bossName+'\u201d to its version from '+when+'? The rest of the guide stays as-is. Your current data will be saved as a new history entry first, so this can be undone. Any unsaved edits in the editor will be discarded.')) return;
+    restoreBossBtn.disabled=true; const origText=restoreBossBtn.textContent; restoreBossBtn.textContent="Restoring\u2026";
+    try{
+      const r=await fetch("/api/history?ts="+encodeURIComponent(ts),{credentials:"same-origin"});
+      if(!r.ok) throw new Error("Couldn\u2019t load that version.");
+      const snapshotData=await r.json();
+      let foundBoss=null;
+      (snapshotData||[]).forEach(rd=>(rd.bosses||[]).forEach(b=>{ if(b.id===bossId) foundBoss=b; }));
+      if(!foundBoss) throw new Error("That boss wasn\u2019t found in the selected version.");
+      const current=JSON.parse(JSON.stringify(RAID_DATA));
+      let targetRaid=current.find(rd=>rd.id===raidId);
+      if(!targetRaid){ targetRaid={id:raidId,name:raidName,bosses:[]}; current.push(targetRaid); }
+      targetRaid.bosses=targetRaid.bosses||[];
+      const idx=targetRaid.bosses.findIndex(b=>b.id===bossId);
+      if(idx>=0) targetRaid.bosses[idx]=foundBoss; else targetRaid.bosses.push(foundBoss);
+      const saveRes=await fetch("/api/data",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(current)});
+      if(!saveRes.ok) throw new Error("Save failed.");
+      await loadFromServer();
+      editorOpenedAtTs=await latestHistoryTs();
+      if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
+      state.abilityIndex=0; state.occTime=null; currentLoadedId=null; teardownPlayers();
+      closeHistory(); closeEditor(); render();
+    }catch(err){ alert("Couldn\u2019t restore that boss: "+(err&&err.message?err.message:"unknown error")); restoreBossBtn.disabled=false; restoreBossBtn.textContent=origText; }
+  }
+});
 
 $("#editGuideBtn").addEventListener("click",openEditor);
 

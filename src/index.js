@@ -245,6 +245,12 @@ async function handleHistory(request, env) {
   const s = await getSession(request, env);
   if (!s || !s.isEditor) return json({ error: "forbidden" }, 403);
   if (request.method === "GET") {
+    const ts = new URL(request.url).searchParams.get("ts");
+    if (ts) {
+      const snap = await env.TU_KV.get("history:" + ts);
+      if (!snap) return json({ error: "That version is no longer available." }, 404);
+      return new Response(snap, { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     let idx = [];
     try { idx = JSON.parse((await env.TU_KV.get("history_index")) || "[]"); } catch (e) { idx = []; }
     return json({ history: idx });
