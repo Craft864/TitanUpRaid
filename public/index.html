@@ -942,9 +942,9 @@ function linesToInfo(t){ const l=(t||"").split("\n").map(x=>x.trim()).filter(Boo
 function infoToLines(v){ if(v==null) return ""; if(Array.isArray(v)) return v.join("\n"); return String(v); }
 function videoUrlFor(p,id){ if(!id) return ""; return p==="twitch" ? "https://www.twitch.tv/videos/"+id : "https://youtu.be/"+id; }
 function detText(p,id){ return id ? ((p||"youtube")+" \u00b7 id "+id) : "Paste a YouTube or Twitch URL"; }
-function blankBoss(){ return {id:"boss_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"New Boss", tier:"", overview:"", platform:"youtube", videoId:"", abilities:[]}; }
+function blankBoss(){ return {id:"boss_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", tier:"", overview:"", platform:"youtube", videoId:"", abilities:[]}; }
 function blankAbility(){ return {name:"New Ability", time:0, desc:"", gif:"", info:{}}; }
-function blankRaid(){ return {id:"raid_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"New Raid", bosses:[]}; }
+function blankRaid(){ return {id:"raid_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", bosses:[]}; }
 
 let editData=null, editRaidIdx=0, editBossIdx=-1;
 const overlay=$("#editorOverlay");
@@ -999,7 +999,7 @@ function bossEditorHtml(){
   const D='data-r="'+r+'" data-b="'+bi+'"';
   const abils=(b.abilities||[]).map((a,ai)=>abilityBlock(a,ai)).join("");
   const raidOptions=editData.map((rd,i)=>'<option value="'+i+'"'+(i===r?" selected":"")+'>'+escapeHtml(rd.name||"(unnamed)")+'</option>').join("");
-  return field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'">')+
+  return field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
     field("Tier / label (small text above the name)",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">')+
     field("Which raid",'<select '+D+' data-k="moveraid">'+raidOptions+'</select>')+
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
@@ -1026,7 +1026,7 @@ function renderEditor(){
   let outline="";
   editData.forEach((raid,ri)=>{
     outline+='<div class="ed-raid">'+
-      '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'"><button class="btn danger ed-x" data-action="delraid" data-r="'+ri+'" title="Delete raid">\u00d7</button></div>';
+      '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'" placeholder="Raid name"><button class="btn danger ed-x" data-action="delraid" data-r="'+ri+'" title="Delete raid">\u00d7</button></div>';
     (raid.bosses||[]).forEach((b,bi)=>{
       const sel=(ri===editRaidIdx&&bi===editBossIdx);
       outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+'</button>';
