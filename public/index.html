@@ -618,7 +618,7 @@ function applyYouTube(id,start){
       onStateChange:function(ev){
         if(!ytWarmed && ev.data===YT.PlayerState.PLAYING){
           ytWarmed=true;
-          try{ ytPlayer.seekTo(ytPendingSeek||0,true); ytPlayer.pauseVideo(); ytPlayer.unMute(); }catch(e){}
+          try{ ytPlayer.seekTo(ytPendingSeek||0,true); ytPlayer.pauseVideo(); }catch(e){} // stays muted by default; unmute via the player's own controls
         }
       },
       onError:function(ev){ showStageMsg("<div><strong>YouTube couldn\u2019t play this video.</strong><br>"+ytErrorMessage(ev&&ev.data)+"</div>"); }
