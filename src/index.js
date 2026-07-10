@@ -53,7 +53,10 @@ function getCookie(request, name) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 function json(obj, status) {
-  return new Response(JSON.stringify(obj), { status: status || 200, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(obj), { status: status || 200, headers: { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" } });
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function htmlResponse(html, status) {
   return new Response(html, { status: status || 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
@@ -166,6 +169,22 @@ async function getAppToken(env) {
   return t.access_token;
 }
 
+// Cached for 10 minutes so logins don't wait on Blizzard's roster endpoint
+// every time. A brand-new member may need to wait out the cache to get in.
+async function getRoster(env) {
+  const cached = await env.TU_KV.get("rostercache");
+  if (cached) { try { return JSON.parse(cached); } catch (e) { /* refetch below */ } }
+  const region = env.BNET_REGION || "us";
+  const appToken = await getAppToken(env);
+  const rosterUrl = "https://" + region + ".api.blizzard.com/data/wow/guild/" +
+    env.GUILD_REALM_SLUG + "/" + env.GUILD_NAME_SLUG + "/roster?namespace=profile-" + region + "&locale=en_US";
+  const rRes = await fetch(rosterUrl, { headers: { Authorization: "Bearer " + appToken } });
+  if (!rRes.ok) return null;
+  const roster = await rRes.json();
+  await env.TU_KV.put("rostercache", JSON.stringify(roster), { expirationTtl: 600 });
+  return roster;
+}
+
 async function checkMembership(env, chars, battletag) {
   const allow = (env.ALLOWLIST_NAMES || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
   if (battletag && allow.includes(battletag.toLowerCase())) return true;
@@ -173,13 +192,8 @@ async function checkMembership(env, chars, battletag) {
   if (chars.length === 0) return false;
 
   try {
-    const region = env.BNET_REGION || "us";
-    const appToken = await getAppToken(env);
-    const rosterUrl = "https://" + region + ".api.blizzard.com/data/wow/guild/" +
-      env.GUILD_REALM_SLUG + "/" + env.GUILD_NAME_SLUG + "/roster?namespace=profile-" + region + "&locale=en_US";
-    const rRes = await fetch(rosterUrl, { headers: { Authorization: "Bearer " + appToken } });
-    if (!rRes.ok) return false;
-    const roster = await rRes.json();
+    const roster = await getRoster(env);
+    if (!roster) return false;
     const pairSet = new Set(), nameSet = new Set();
     (roster.members || []).forEach(m => {
       const ch = m.character || {};
@@ -207,8 +221,9 @@ async function handleData(request, env) {
   const s = await getSession(request, env);
   if (!s || !s.isMember) return json({ error: "forbidden" }, 403);
   if (request.method === "GET") {
+    // The stored value is already JSON; wrap it as-is instead of parse+re-stringify.
     const raw = await env.TU_KV.get("guilddata");
-    return json({ data: raw ? JSON.parse(raw) : null });
+    return new Response('{"data":' + (raw || "null") + '}', { headers: { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" } });
   }
   if (request.method === "POST") {
     if (!s.isEditor) return json({ error: "forbidden" }, 403);
@@ -316,6 +331,7 @@ async function handleImage(request, env, key) {
   const headers = new Headers();
   headers.set("Content-Type", (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream");
   headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  headers.set("X-Content-Type-Options", "nosniff");
   return new Response(obj.body, { headers });
 }
 
@@ -353,7 +369,7 @@ function landingPage(msg) {
 function deniedPage(name) {
   return shell(
     '<h1>TITAN UP</h1><div class="sub">Raid Guide</div>' +
-    '<p>Signed in as <strong>' + (name || "") + '</strong>, but none of your characters are on the Titan Up (Medivh-US) roster yet.</p>' +
+    '<p>Signed in as <strong>' + escapeHtml(name || "") + '</strong>, but none of your characters are on the Titan Up (Medivh-US) roster yet.</p>' +
     '<p>If you just joined, the roster can take a little while to update — check back later, or ask an officer to add you to the allow-list.</p>' +
     '<a class="muted" href="/auth/logout">Log out / switch account</a>'
   );
