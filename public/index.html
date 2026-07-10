@@ -1079,10 +1079,21 @@ function abilityBlock(a,ai){
   '</div></details>';
 }
 
+function editorSiblingDifficulties(r,boss){
+  if(!boss||!boss.groupId) return [];
+  const sibs=[];
+  (editData[r].bosses||[]).forEach((b,bi)=>{ if(b.groupId===boss.groupId) sibs.push({b,bi}); });
+  sibs.sort((x,y)=>difficultyOrder(x.b.difficulty)-difficultyOrder(y.b.difficulty));
+  return sibs;
+}
 function bossEditorHtml(){
   if(editBossIdx<0) return '<p class="det" style="margin-top:8px">Select a boss on the left, or use <strong>+ Add boss</strong> under a raid to create one.</p>';
   const r=editRaidIdx, bi=editBossIdx, b=editData[r].bosses[bi];
   const D='data-r="'+r+'" data-b="'+bi+'"';
+  const editorSibs=editorSiblingDifficulties(r,b);
+  const editorDiffTabs=editorSibs.length>1
+    ? '<div class="diff-tabs">'+editorSibs.map(s=>'<button class="diff-tab'+(s.bi===bi?" active":"")+'" data-action="selboss" data-r="'+r+'" data-b="'+s.bi+'">'+escapeHtml(s.b.difficulty||"?")+'</button>').join("")+'</div>'
+    : '';
   const abils=(b.abilities||[]).map((a,ai)=>abilityBlock(a,ai)).join("");
   const raidOptions=editData.map((rd,i)=>'<option value="'+i+'"'+(i===r?" selected":"")+'>'+escapeHtml(rd.name||"(unnamed)")+'</option>').join("");
   const diffOptions='<option value="">None</option>'+DIFFICULTIES.map(d=>'<option value="'+d+'"'+(b.difficulty===d?" selected":"")+'>'+d+'</option>').join("");
@@ -1097,7 +1108,7 @@ function bossEditorHtml(){
       '<div class="field" style="margin-bottom:0"><label>Which raid</label><select '+D+' data-k="moveraid">'+raidOptions+'</select></div>'+
       dupControl+
     '</div>';
-  return topRow+
+  return editorDiffTabs+topRow+
     '<div class="roles-grid">'+
       field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
       field("Tier / label",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">',"Small text shown above the boss name on the boss page.")+
@@ -1129,9 +1140,20 @@ function renderEditor(){
   editData.forEach((raid,ri)=>{
     outline+='<div class="ed-raid">'+
       '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'" placeholder="Raid name"><button class="btn danger ed-x" data-action="delraid" data-r="'+ri+'" title="Delete raid">\u00d7</button></div>';
+    const renderedGroups=new Set();
     (raid.bosses||[]).forEach((b,bi)=>{
+      if(b.groupId){
+        if(renderedGroups.has(b.groupId)) return;
+        renderedGroups.add(b.groupId);
+        const groupBosses=(raid.bosses||[]).map((gb,gbi)=>({gb,gbi})).filter(x=>x.gb.groupId===b.groupId);
+        const preferred=groupBosses.slice().sort((x,y)=>difficultyOrder(x.gb.difficulty)-difficultyOrder(y.gb.difficulty))[0];
+        const isSelected=(ri===editRaidIdx)&&groupBosses.some(x=>x.gbi===editBossIdx);
+        const targetBi=isSelected?editBossIdx:preferred.gbi;
+        outline+='<button class="bl'+(isSelected?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+targetBi+'">'+escapeHtml(preferred.gb.name||"(unnamed)")+'</button>';
+        return;
+      }
       const sel=(ri===editRaidIdx&&bi===editBossIdx);
-      outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+(b.difficulty?" ("+escapeHtml(b.difficulty)+")":"")+'</button>';
+      outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+'</button>';
     });
     outline+='<button class="btn ed-addboss" data-action="addboss" data-r="'+ri+'">+ Add boss</button></div>';
   });
