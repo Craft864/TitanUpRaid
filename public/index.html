@@ -239,6 +239,16 @@
   .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--orange-bright);}
   .field textarea{resize:vertical; min-height:60px; line-height:1.5;}
   .det{font-size:11px; color:var(--muted-2); margin-top:5px;}
+  .field-label-help{cursor:help; border-bottom:1px dotted var(--muted-2); position:relative;}
+  .field-label-help:hover, .field-label-help:focus-visible{color:var(--text); border-bottom-color:var(--orange-bright); outline:none;}
+  .field-label-help:hover::after, .field-label-help:focus-visible::after{
+    content:attr(data-tip); position:absolute; left:0; top:calc(100% + 7px); z-index:60;
+    width:max-content; max-width:280px; white-space:normal;
+    background:var(--panel-solid); border:1px solid var(--border-strong); border-radius:8px;
+    padding:9px 11px; font-family:var(--body); font-size:12px; font-weight:500;
+    text-transform:none; letter-spacing:normal; color:var(--text); line-height:1.45;
+    box-shadow:0 10px 28px rgba(0,0,0,.45);
+  }
   .boss-top-row{display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:start; margin-bottom:14px;}
   .dup-inline{display:flex; gap:8px;}
   .dup-inline select{width:auto; background:var(--bg-2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 11px; font-family:var(--body); font-size:14px;}
@@ -991,7 +1001,10 @@ function openEditor(){
   overlay.classList.add("show"); document.body.classList.add("editor-open");
 }
 function closeEditor(){ overlay.classList.remove("show"); document.body.classList.remove("editor-open"); }
-function field(label,inner){ return '<div class="field"><label>'+label+'</label>'+inner+'</div>'; }
+function field(label,inner,help){
+  const lbl=help?'<span class="field-label-help" tabindex="0" data-tip="'+escapeHtml(help)+'">'+label+'</span>':label;
+  return '<div class="field"><label>'+lbl+'</label>'+inner+'</div>';
+}
 
 function abilityBlock(a,ai){
   const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
@@ -1004,24 +1017,24 @@ function abilityBlock(a,ai){
   return '<details class="abil" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" draggable="true" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
     '<div class="roles-grid">'+
       field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
-      field("Times (mm:ss, comma-separated)",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">')+
-      field("Duration (seconds, optional)",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">')+
-      field("Phase label (optional)",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">')+
+      field("Times",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">',"Format: mm:ss, comma-separated. One ability can hit multiple times.")+
+      field("Duration",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">',"Optional, in seconds.")+
+      field("Phase label",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">',"Optional — a short tag shown next to the ability’s times.")+
     '</div>'+
-    field("Anchor times to a phase (optional)",'<select '+D+' data-k="anchor">'+anchorOpts+'</select><div class="det">When anchored, the Times above are counted <strong>from that phase\u2019s start</strong> instead of from the pull. Move the phase\u2019s start time (in the boss\u2019s Phase timings) to shift all its abilities together \u2014 handy for health-threshold phases.</div>')+
-    field("Ability type (select all that apply)",'<div class="tag-chips">'+ABILITY_TAGS.map(tag=>'<label class="tag-chip"><input type="checkbox" '+D+' data-k="tag" data-tag="'+escapeHtml(tag)+'"'+((a.tags||[]).includes(tag)?" checked":"")+'>'+escapeHtml(tag)+'</label>').join("")+'</div>')+
-    field("Video override URL (optional \u2014 blank uses the boss video)",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>')+
+    field("Anchor to a phase",'<select '+D+' data-k="anchor">'+anchorOpts+'</select>',"Optional. When anchored, the Times above are counted from that phase\u2019s start instead of from the pull. Move the phase\u2019s start time (in the boss\u2019s Phase timings) to shift all its abilities together \u2014 handy for health-threshold phases.")+
+    field("Ability type",'<div class="tag-chips">'+ABILITY_TAGS.map(tag=>'<label class="tag-chip"><input type="checkbox" '+D+' data-k="tag" data-tag="'+escapeHtml(tag)+'"'+((a.tags||[]).includes(tag)?" checked":"")+'>'+escapeHtml(tag)+'</label>').join("")+'</div>',"Select all that apply.")+
+    field("Video override URL",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>',"Optional \u2014 leave blank to use the boss\u2019s default video.")+
     field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
-    field("GIF URL (optional — paste an image, paste/type a URL, or upload)",'<div style="display:flex;gap:8px"><input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'" style="flex:1"><button class="btn" data-action="uploadgif" '+D+'>Upload</button>'+(a.gif?'<button class="btn danger" data-action="delgifimg" '+D+' title="Remove image">×</button>':"")+'</div>')+
-    field("Raid plan override (optional — blank uses the boss’s Raid Plan)",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(a.raidplanUrl||"")+'"><div class="det">Only needed if this specific ability has its own raidstrats.gg plan (e.g. a soak assignment). Same rules as the boss-level one: must be an https://raidstrats.gg embed link.</div>')+
-    field("Raid planning images (optional — upload, or click here and paste an image)",'<div class="img-thumbs" data-imgdrop tabindex="0" title="Click, then Ctrl+V to paste a copied image" '+D+'>'+(imgThumbs||'<div class="img-thumbs-empty">No images yet</div>')+'</div><button class="btn" data-action="uploadimages" '+D+'>Upload image(s)</button><div class="det">Screenshots or diagrams for this ability — positioning charts, soak assignments, etc. Shown as a small gallery under the description.</div>')+
+    field("GIF URL",'<div style="display:flex;gap:8px"><input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'" style="flex:1"><button class="btn" data-action="uploadgif" '+D+'>Upload</button>'+(a.gif?'<button class="btn danger" data-action="delgifimg" '+D+' title="Remove image">×</button>':"")+'</div>',"Optional. Paste an image from your clipboard, paste/type a URL, or click Upload.")+
+    field("Raid plan override",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(a.raidplanUrl||"")+'">',"Optional — only needed if this specific ability has its own raidstrats.gg plan (e.g. a soak assignment), different from the boss’s overall Raid Plan. Must be an https://raidstrats.gg embed link.")+
+    field("Raid planning images",'<div class="img-thumbs" data-imgdrop tabindex="0" title="Click, then Ctrl+V to paste a copied image" '+D+'>'+(imgThumbs||'<div class="img-thumbs-empty">No images yet</div>')+'</div><button class="btn" data-action="uploadimages" '+D+'>Upload image(s)</button>',"Optional. Upload, or click the box and paste (Ctrl+V) a copied image. Screenshots or diagrams for this ability — positioning charts, soak assignments, etc. Shown as a small gallery under the description.")+
     '<div class="roles-grid">'+
-      field("For everyone \u2014 one note per line",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>')+
+      field("For everyone",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>',"One note per line.")+
       field("Tanks",'<textarea '+D+' data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>')+
       field("DPS",'<textarea '+D+' data-k="info.dps">'+escapeHtml(infoToLines(a.info&&a.info.dps))+'</textarea>')+
       field("Healers",'<textarea '+D+' data-k="info.healer">'+escapeHtml(infoToLines(a.info&&a.info.healer))+'</textarea>')+
     '</div>'+
-    field("Special assignment (optional)",'<textarea '+D+' data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>')+
+    field("Special assignment",'<textarea '+D+' data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>',"Optional.")+
     '<button class="btn danger" data-action="delabil" data-a="'+ai+'">Delete ability</button>'+
   '</div></details>';
 }
@@ -1037,24 +1050,27 @@ function bossEditorHtml(){
   (editData[r].bosses||[]).forEach(bb=>{ if(b.groupId&&bb.groupId===b.groupId&&bb.difficulty) usedDiffs.add(bb.difficulty); });
   const availDiffs=DIFFICULTIES.filter(d=>!usedDiffs.has(d));
   const dupControl = availDiffs.length
-    ? '<div class="field" style="margin-bottom:0"><label>Duplicate as</label><div class="dup-inline" title="Copies everything — abilities, timings, video, images — into a new difficulty tab"><select id="dupDiffSel">'+availDiffs.map(d=>'<option value="'+d+'">'+d+'</option>').join("")+'</select><button class="btn" data-action="dupboss" '+D+'>Duplicate</button></div></div>'
+    ? '<div class="field" style="margin-bottom:0"><label><span class="field-label-help" tabindex="0" data-tip="Copies everything — abilities, timings, video, images — into a new difficulty tab so you only adjust what changed.">Duplicate as</span></label><div class="dup-inline"><select id="dupDiffSel">'+availDiffs.map(d=>'<option value="'+d+'">'+d+'</option>').join("")+'</select><button class="btn" data-action="dupboss" '+D+'>Duplicate</button></div></div>'
     : '<div></div>';
   const topRow = '<div class="boss-top-row">'+
-      '<div class="field" style="margin-bottom:0"><label>Difficulty (optional)</label><select '+D+' data-k="difficulty">'+diffOptions+'</select></div>'+
+      '<div class="field" style="margin-bottom:0"><label><span class="field-label-help" tabindex="0" data-tip="Optional. Difficulty tabs appear on the boss page once 2+ bosses share the same duplicate group.">Difficulty</span></label><select '+D+' data-k="difficulty">'+diffOptions+'</select></div>'+
       '<div class="field" style="margin-bottom:0"><label>Which raid</label><select '+D+' data-k="moveraid">'+raidOptions+'</select></div>'+
       dupControl+
-    '</div>'+
-    (availDiffs.length?'<div class="det" style="margin:-8px 0 14px">Difficulty tabs appear on the boss page once 2+ bosses share the same duplicate group.</div>':'');
+    '</div>';
   return topRow+
-    field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
-    field("Tier / label (small text above the name)",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">')+
+    '<div class="roles-grid">'+
+      field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
+      field("Tier / label",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">',"Small text shown above the boss name on the boss page.")+
+    '</div>'+
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
-    field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
-    field("Video offset (seconds) \u2014 where the pull happens in the video",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'"><div class="det">If the pull is a few seconds into the video, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.</div>')+
-    field("Raid plan embed (raidstrats.gg, optional)",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(b.raidplanUrl||"")+'"><div class="det">On raidstrats.gg open your plan, click <strong>Share \u2192 Embed</strong>, and paste the URL it gives you here (must be an https://raidstrats.gg link). Leave blank to hide this section on the boss page.</div>')+
-    field("Recorded pull (Warcraft Recorder, optional)",'<input '+D+' data-k="recorderUrl" value="'+escapeHtml(b.recorderUrl||"")+'"><div class="det">Paste a warcraftrecorder.com share link (the \u201cCopy Link\u201d button on a clip). Leave blank to hide this section on the boss page.</div>')+
-    field("Phase timings (optional \u2014 shown across the top of the timeline)", phaseListHtml(r,bi,b))+
-    '<div class="field"><label>Abilities / timeline (drag ☰ to reorder)</label>'+abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button></div>'+
+    '<div class="roles-grid">'+
+      field("Default video URL",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>',"YouTube or Twitch.")+
+      field("Video offset",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'">',"Seconds \u2014 where the pull happens in the video. If the pull is a few seconds in, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.")+
+    '</div>'+
+    field("Raid plan embed",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(b.raidplanUrl||"")+'">',"Optional. On raidstrats.gg open your plan, click Share \u2192 Embed, and paste the URL it gives you here (must be an https://raidstrats.gg link). Leave blank to hide this section on the boss page.")+
+    field("Recorded pull",'<input '+D+' data-k="recorderUrl" value="'+escapeHtml(b.recorderUrl||"")+'">',"Optional. Paste a warcraftrecorder.com share link (the \u201cCopy Link\u201d button on a clip). Leave blank to hide this section on the boss page.")+
+    field("Phase timings", phaseListHtml(r,bi,b),"Optional. Shown as bands across the top of the ability timeline.")+
+    field("Abilities / timeline",abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button>',"Drag the ☰ handle to reorder.")+
     '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
 }
 function phaseListHtml(r,bi,b){
