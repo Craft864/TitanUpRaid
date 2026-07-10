@@ -235,10 +235,14 @@
   .boss-editor{padding:18px 22px; overflow:auto;}
   .field{margin-bottom:14px;}
   .field>label{display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.6px;}
-  .field input, .field textarea{width:100%; background:var(--bg-2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 11px; font-family:var(--body); font-size:14px;}
-  .field input:focus, .field textarea:focus{outline:none; border-color:var(--orange-bright);}
+  .field input, .field textarea, .field select{width:100%; background:var(--bg-2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 11px; font-family:var(--body); font-size:14px;}
+  .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--orange-bright);}
   .field textarea{resize:vertical; min-height:60px; line-height:1.5;}
   .det{font-size:11px; color:var(--muted-2); margin-top:5px;}
+  .boss-top-row{display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:start; margin-bottom:14px;}
+  .dup-inline{display:flex; gap:8px;}
+  .dup-inline select{width:auto; background:var(--bg-2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 11px; font-family:var(--body); font-size:14px;}
+  @media (max-width:760px){ .boss-top-row{grid-template-columns:1fr;} }
   .tag-chips{display:flex; flex-wrap:wrap; gap:8px;}
   .tag-chip{position:relative; display:inline-flex; align-items:center; font-family:var(--body); font-size:12.5px; font-weight:600; color:var(--muted); background:var(--panel-2); border:1px solid var(--border); border-radius:999px; padding:7px 13px; cursor:pointer; transition:.13s;}
   .tag-chip:hover{border-color:var(--border-strong); color:var(--text);}
@@ -1032,14 +1036,18 @@ function bossEditorHtml(){
   const usedDiffs=new Set(b.difficulty?[b.difficulty]:[]);
   (editData[r].bosses||[]).forEach(bb=>{ if(b.groupId&&bb.groupId===b.groupId&&bb.difficulty) usedDiffs.add(bb.difficulty); });
   const availDiffs=DIFFICULTIES.filter(d=>!usedDiffs.has(d));
-  const dupHtml = availDiffs.length
-    ? '<div class="field"><label>Duplicate this boss as another difficulty</label><div style="display:flex;gap:8px"><select id="dupDiffSel">'+availDiffs.map(d=>'<option value="'+d+'">'+d+'</option>').join("")+'</select><button class="btn" data-action="dupboss" '+D+'>Duplicate</button></div><div class="det">Copies everything — abilities, timings, video, images — into a new difficulty tab so you only adjust what changed.</div></div>'
-    : '';
-  return field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
+  const dupControl = availDiffs.length
+    ? '<div class="field" style="margin-bottom:0"><label>Duplicate as</label><div class="dup-inline" title="Copies everything — abilities, timings, video, images — into a new difficulty tab"><select id="dupDiffSel">'+availDiffs.map(d=>'<option value="'+d+'">'+d+'</option>').join("")+'</select><button class="btn" data-action="dupboss" '+D+'>Duplicate</button></div></div>'
+    : '<div></div>';
+  const topRow = '<div class="boss-top-row">'+
+      '<div class="field" style="margin-bottom:0"><label>Difficulty (optional)</label><select '+D+' data-k="difficulty">'+diffOptions+'</select></div>'+
+      '<div class="field" style="margin-bottom:0"><label>Which raid</label><select '+D+' data-k="moveraid">'+raidOptions+'</select></div>'+
+      dupControl+
+    '</div>'+
+    (availDiffs.length?'<div class="det" style="margin:-8px 0 14px">Difficulty tabs appear on the boss page once 2+ bosses share the same duplicate group.</div>':'');
+  return topRow+
+    field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
     field("Tier / label (small text above the name)",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">')+
-    field("Difficulty (optional — enables tabs on the boss page when more than one difficulty shares this boss)",'<select '+D+' data-k="difficulty">'+diffOptions+'</select>')+
-    dupHtml+
-    field("Which raid",'<select '+D+' data-k="moveraid">'+raidOptions+'</select>')+
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
     field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
     field("Video offset (seconds) \u2014 where the pull happens in the video",'<input '+D+' data-k="videoOffset" value="'+(Number(b.videoOffset)||0)+'"><div class="det">If the pull is a few seconds into the video, enter that number (e.g. 3). Every timeline time seeks to (time + offset). Negative values are fine.</div>')+
