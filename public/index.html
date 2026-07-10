@@ -1122,7 +1122,7 @@ function bossEditorHtml(){
     field("Recorded pull",'<input '+D+' data-k="recorderUrl" value="'+escapeHtml(b.recorderUrl||"")+'">',"Optional. Paste a warcraftrecorder.com share link (the \u201cCopy Link\u201d button on a clip). Leave blank to hide this section on the boss page.")+
     field("Phase timings", phaseListHtml(r,bi,b),"Optional. Shown as bands across the top of the ability timeline.")+
     field("Abilities / timeline",abils+'<button class="btn" data-action="addabil" style="margin-top:6px">+ Add ability</button>',"Drag the ☰ handle to reorder.")+
-    '<button class="btn danger" data-action="delboss" style="margin-top:14px">Delete this boss</button>';
+    '<button class="btn danger" data-action="delboss" style="margin-top:14px">'+(editorSibs.length>1?"Delete this difficulty ("+escapeHtml(b.difficulty||"?")+")":"Delete this boss")+'</button>';
 }
 function phaseListHtml(r,bi,b){
   const phs=b.phases||[];
@@ -1222,7 +1222,16 @@ overlay.addEventListener("click",function(e){
   if(act==="close"){ closeEditor(); }
   else if(act==="selboss"){ editRaidIdx=Number(btn.dataset.r); editBossIdx=Number(btn.dataset.b); renderEditor(); }
   else if(act==="addboss"){ const ri=Number(btn.dataset.r); editData[ri].bosses=editData[ri].bosses||[]; editData[ri].bosses.push(blankBoss()); editRaidIdx=ri; editBossIdx=editData[ri].bosses.length-1; renderEditor(); }
-  else if(act==="delboss"){ const removed=editData[editRaidIdx].bosses.splice(editBossIdx,1)[0]; deleteImages(collectImageUrlsFromBoss(removed)); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
+  else if(act==="delboss"){
+    const boss=editData[editRaidIdx].bosses[editBossIdx];
+    const sibs=editorSiblingDifficulties(editRaidIdx,boss);
+    const name=boss.name||"(unnamed)";
+    const msg=sibs.length>1
+      ? 'Delete just the '+(boss.difficulty||"?")+' version of “'+name+'”? '+sibs.filter(s=>s.bi!==editBossIdx).map(s=>s.b.difficulty||"?").join(" and ")+' will be unaffected. This can’t be undone.'
+      : 'Delete “'+name+'”? This can’t be undone.';
+    if(!confirm(msg)) return;
+    const removed=editData[editRaidIdx].bosses.splice(editBossIdx,1)[0]; deleteImages(collectImageUrlsFromBoss(removed)); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor();
+  }
   else if(act==="dupboss"){
     const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b);
     const boss=editData[ri].bosses[bi];
