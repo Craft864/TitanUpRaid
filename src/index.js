@@ -35,6 +35,7 @@ export default {
       if (path === "/auth/logout") return handleLogout(request, env);
       if (path === "/api/me") return handleMe(request, env);
       if (path === "/api/data") return handleData(request, env);
+      if (path === "/api/history") return handleHistory(request, env);
       if (path === "/api/upload") return handleUpload(request, env);
       if (path.startsWith("/img/")) return handleImage(request, env, decodeURIComponent(path.slice(5)));
       return handleApp(request, env);
@@ -216,7 +217,48 @@ async function handleData(request, env) {
     let body;
     try { body = JSON.parse(raw); } catch (e) { return json({ error: "bad json" }, 400); }
     if (!Array.isArray(body)) return json({ error: "expected an array" }, 400);
+    await snapshotHistory(env, s.battletag);
     await env.TU_KV.put("guilddata", JSON.stringify(body));
+    return json({ ok: true });
+  }
+  return json({ error: "method not allowed" }, 405);
+}
+
+// Every save snapshots the data it's about to replace, so a bad save or
+// import can be undone. Capped so KV storage/list size don't grow forever.
+const MAX_HISTORY = 30;
+
+async function snapshotHistory(env, editorName) {
+  const current = await env.TU_KV.get("guilddata");
+  if (!current) return; // nothing to snapshot on the very first save ever
+  const ts = Date.now();
+  let idx = [];
+  try { idx = JSON.parse((await env.TU_KV.get("history_index")) || "[]"); } catch (e) { idx = []; }
+  idx.unshift({ ts, editor: editorName || "" });
+  const overflow = idx.splice(MAX_HISTORY);
+  await env.TU_KV.put("history:" + ts, current);
+  await env.TU_KV.put("history_index", JSON.stringify(idx));
+  for (const o of overflow) await env.TU_KV.delete("history:" + o.ts);
+}
+
+async function handleHistory(request, env) {
+  const s = await getSession(request, env);
+  if (!s || !s.isEditor) return json({ error: "forbidden" }, 403);
+  if (request.method === "GET") {
+    let idx = [];
+    try { idx = JSON.parse((await env.TU_KV.get("history_index")) || "[]"); } catch (e) { idx = []; }
+    return json({ history: idx });
+  }
+  if (request.method === "POST") {
+    const raw = await request.text();
+    let body;
+    try { body = JSON.parse(raw); } catch (e) { return json({ error: "bad json" }, 400); }
+    const ts = body && body.ts;
+    if (!ts) return json({ error: "missing ts" }, 400);
+    const snap = await env.TU_KV.get("history:" + ts);
+    if (!snap) return json({ error: "That version is no longer available." }, 404);
+    await snapshotHistory(env, s.battletag); // so restoring is itself undoable
+    await env.TU_KV.put("guilddata", snap);
     return json({ ok: true });
   }
   return json({ error: "method not allowed" }, 405);

@@ -73,6 +73,10 @@
   .ed-addboss{width:100%; margin-top:5px; font-size:12px; padding:6px;}
   .boss-head{margin-bottom:20px;}
   .boss-head .tier{font-family:var(--display); font-size:11px; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:var(--orange-bright); margin-bottom:10px;}
+  .diff-tabs{display:flex; gap:6px; margin-bottom:10px;}
+  .diff-tab{font-family:var(--body); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:5px 12px; cursor:pointer; transition:.15s;}
+  .diff-tab:hover{color:var(--text); border-color:var(--border-strong);}
+  .diff-tab.active{color:#fff; border-color:transparent; background:var(--grad); box-shadow:0 3px 12px rgba(224,128,48,.28);}
   .boss-head h2{font-family:var(--display); font-weight:700; font-size:29px; letter-spacing:-.7px; margin:0 0 10px; line-height:1.1; color:#fff;}
   .boss-head .overview{color:var(--muted); max-width:740px; font-size:14px;}
   .media{display:grid; grid-template-columns:1.75fr 1fr; gap:16px; margin:18px 0 8px; align-items:start;}
@@ -211,6 +215,16 @@
   body.editor-open{overflow:hidden;}
   #editorOverlay{position:fixed; inset:0; z-index:10000; background:rgba(6,5,10,.72); backdrop-filter:blur(6px); display:none; align-items:stretch; justify-content:center; padding:24px;}
   #editorOverlay.show{display:flex;}
+  #historyOverlay{position:fixed; inset:0; z-index:10001; background:rgba(6,5,10,.72); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; padding:24px;}
+  #historyOverlay.show{display:flex;}
+  .history-modal{background:var(--panel-solid); border:1px solid var(--border); border-radius:16px; width:min(560px,100%); max-height:80vh; display:flex; flex-direction:column; overflow:hidden;}
+  .history-head{display:flex; align-items:center; gap:12px; padding:15px 20px; border-bottom:1px solid var(--border);}
+  .history-head h2{font-family:var(--display); font-weight:700; font-size:16px; margin:0;}
+  .history-list{padding:8px 20px; overflow:auto;}
+  .history-row{display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--border);}
+  .history-row:last-child{border-bottom:0;}
+  .history-when{flex:1; font-size:13.5px; color:var(--text);}
+  .history-who{color:var(--muted-2); font-size:12px; display:block; margin-top:2px;}
   .editor{background:var(--panel-solid); border:1px solid var(--border); border-radius:16px; width:min(1100px,100%); max-height:100%; display:flex; flex-direction:column; overflow:hidden;}
   .editor-head{display:flex; align-items:center; gap:12px; padding:15px 20px; border-bottom:1px solid var(--border);}
   .editor-head h2{font-family:var(--display); font-weight:700; font-size:16px; margin:0;}
@@ -332,6 +346,7 @@
 </main>
 
 <div id="editorOverlay"></div>
+<div id="historyOverlay"></div>
 
 <footer>
   <strong>Editing this guide:</strong> all boss and ability data lives in the <code>RAID_DATA</code> array near the top of the &lt;script&gt; block at the bottom of this file. Copy an existing block and change the values. Set <code>platform:"twitch"</code> and a Twitch video id to embed a VOD, or leave it off for YouTube. No server or API keys required.
@@ -476,6 +491,15 @@ const ROLE_META=[
   {key:"special",label:"Special Assignment",cls:"panel--special"}
 ];
 const ABILITY_TAGS=["Tankbuster","Add Spawn","Raid Damage","Movement","Debuffs","Raid AOE","Raid DOT","Group Soak","Spread"];
+const DIFFICULTIES=["Normal","Heroic","Mythic"];
+function difficultyOrder(d){ const i=DIFFICULTIES.indexOf(d); return i<0?99:i; }
+function siblingDifficulties(boss){
+  if(!boss||!boss.groupId) return [];
+  const sibs=[];
+  RAID_DATA.forEach(r=>(r.bosses||[]).forEach(b=>{ if(b.groupId===boss.groupId) sibs.push(b); }));
+  sibs.sort((a,b)=>difficultyOrder(a.difficulty)-difficultyOrder(b.difficulty));
+  return sibs;
+}
 let state={ bossId:null, abilityIndex:0, occTime:null };
 let collapsed={};      // raidId -> true when collapsed (per viewer)
 let isEditor=false;    // set from /api/me
@@ -706,7 +730,7 @@ function renderSideNav(){
     if(!bosses.length) html+='<div class="nav-empty">No bosses yet</div>';
     bosses.forEach(b=>{
       const bdrag=layoutEdit?' draggable="true"':'';
-      html+='<button class="nav-boss'+(b.id===state.bossId?" active":"")+'" data-boss="'+b.id+'" data-inraid="'+raid.id+'"'+bdrag+'>'+(layoutEdit?'<span class="grip">\u2630</span>':'')+'<span class="txt">'+escapeHtml(b.name||"(unnamed)")+'</span></button>';
+      html+='<button class="nav-boss'+(b.id===state.bossId?" active":"")+'" data-boss="'+b.id+'" data-inraid="'+raid.id+'"'+bdrag+'>'+(layoutEdit?'<span class="grip">\u2630</span>':'')+'<span class="txt">'+escapeHtml(b.name||"(unnamed)")+(b.difficulty?" ("+escapeHtml(b.difficulty)+")":"")+'</span></button>';
     });
     html+='</div></div>';
   });
@@ -855,10 +879,15 @@ function render(){
   const platform=(ability.platform||(boss&&boss.platform)||"youtube");
   const tag='<span class="platform-tag '+platform+'">'+platform+'</span>';
 
+  const sibs=siblingDifficulties(boss);
+  const diffTabsHtml=sibs.length>1?'<div class="diff-tabs">'+sibs.map(sb=>'<button class="diff-tab'+(sb.id===(boss&&boss.id)?" active":"")+'" data-boss="'+sb.id+'">'+escapeHtml(sb.difficulty||"?")+'</button>').join("")+'</div>':"";
+
   $("#bossHead").innerHTML =
     '<div class="tier">'+escapeHtml(boss?boss.tier||"":"")+tag+'</div>'+
+    diffTabsHtml+
     '<h2>'+escapeHtml(boss?boss.name||"":"No boss data")+'</h2>'+
     '<p class="overview">'+escapeHtml(boss?boss.overview||"":"")+'</p>';
+  $("#bossHead").querySelectorAll(".diff-tab").forEach(btn=>btn.addEventListener("click",()=>{ state.bossId=btn.dataset.boss; state.abilityIndex=0; state.occTime=null; render(); }));
 
   const gifUrl=(ability.gif||"").trim();
   const gifOk=/^https?:\/\//i.test(gifUrl);
@@ -999,8 +1028,17 @@ function bossEditorHtml(){
   const D='data-r="'+r+'" data-b="'+bi+'"';
   const abils=(b.abilities||[]).map((a,ai)=>abilityBlock(a,ai)).join("");
   const raidOptions=editData.map((rd,i)=>'<option value="'+i+'"'+(i===r?" selected":"")+'>'+escapeHtml(rd.name||"(unnamed)")+'</option>').join("");
+  const diffOptions='<option value="">None</option>'+DIFFICULTIES.map(d=>'<option value="'+d+'"'+(b.difficulty===d?" selected":"")+'>'+d+'</option>').join("");
+  const usedDiffs=new Set(b.difficulty?[b.difficulty]:[]);
+  (editData[r].bosses||[]).forEach(bb=>{ if(b.groupId&&bb.groupId===b.groupId&&bb.difficulty) usedDiffs.add(bb.difficulty); });
+  const availDiffs=DIFFICULTIES.filter(d=>!usedDiffs.has(d));
+  const dupHtml = availDiffs.length
+    ? '<div class="field"><label>Duplicate this boss as another difficulty</label><div style="display:flex;gap:8px"><select id="dupDiffSel">'+availDiffs.map(d=>'<option value="'+d+'">'+d+'</option>').join("")+'</select><button class="btn" data-action="dupboss" '+D+'>Duplicate</button></div><div class="det">Copies everything — abilities, timings, video, images — into a new difficulty tab so you only adjust what changed.</div></div>'
+    : '';
   return field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
     field("Tier / label (small text above the name)",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">')+
+    field("Difficulty (optional — enables tabs on the boss page when more than one difficulty shares this boss)",'<select '+D+' data-k="difficulty">'+diffOptions+'</select>')+
+    dupHtml+
     field("Which raid",'<select '+D+' data-k="moveraid">'+raidOptions+'</select>')+
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
     field("Default video URL (YouTube or Twitch)",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>')+
@@ -1029,7 +1067,7 @@ function renderEditor(){
       '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'" placeholder="Raid name"><button class="btn danger ed-x" data-action="delraid" data-r="'+ri+'" title="Delete raid">\u00d7</button></div>';
     (raid.bosses||[]).forEach((b,bi)=>{
       const sel=(ri===editRaidIdx&&bi===editBossIdx);
-      outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+'</button>';
+      outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+(b.difficulty?" ("+escapeHtml(b.difficulty)+")":"")+'</button>';
     });
     outline+='<button class="btn ed-addboss" data-action="addboss" data-r="'+ri+'">+ Add boss</button></div>';
   });
@@ -1042,7 +1080,7 @@ function renderEditor(){
       '<div class="boss-list">'+outline+'</div>'+
       '<div class="boss-editor">'+bossEditorHtml()+'</div>'+
     '</div>'+
-    '<div class="editor-foot"><button class="btn" data-action="import">Import JSON</button><button class="btn" data-action="export">Export JSON</button><span class="spacer"></span><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="save">Save changes</button></div>'+
+    '<div class="editor-foot"><button class="btn" data-action="import">Import JSON</button><button class="btn" data-action="export">Export JSON</button><button class="btn" data-action="history">History</button><span class="spacer"></span><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="save">Save changes</button></div>'+
   '</div>';
 }
 
@@ -1099,6 +1137,20 @@ overlay.addEventListener("click",function(e){
   else if(act==="selboss"){ editRaidIdx=Number(btn.dataset.r); editBossIdx=Number(btn.dataset.b); renderEditor(); }
   else if(act==="addboss"){ const ri=Number(btn.dataset.r); editData[ri].bosses=editData[ri].bosses||[]; editData[ri].bosses.push(blankBoss()); editRaidIdx=ri; editBossIdx=editData[ri].bosses.length-1; renderEditor(); }
   else if(act==="delboss"){ const removed=editData[editRaidIdx].bosses.splice(editBossIdx,1)[0]; deleteImages(collectImageUrlsFromBoss(removed)); editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1; renderEditor(); }
+  else if(act==="dupboss"){
+    const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b);
+    const boss=editData[ri].bosses[bi];
+    const sel=document.getElementById("dupDiffSel");
+    const targetDiff=sel?sel.value:"";
+    if(!targetDiff) return;
+    if(!boss.groupId) boss.groupId="grp_"+Date.now()+"_"+Math.random().toString(36).slice(2,6);
+    const clone=JSON.parse(JSON.stringify(boss));
+    clone.id="boss_"+Date.now()+"_"+Math.random().toString(36).slice(2,6);
+    clone.difficulty=targetDiff;
+    editData[ri].bosses.splice(bi+1,0,clone);
+    editRaidIdx=ri; editBossIdx=bi+1;
+    renderEditor();
+  }
   else if(act==="addraid"){ editData.push(blankRaid()); editRaidIdx=editData.length-1; editBossIdx=-1; renderEditor(); }
   else if(act==="delraid"){
     const ri=Number(btn.dataset.r);
@@ -1133,6 +1185,7 @@ overlay.addEventListener("click",function(e){
   }
   else if(act==="export"){ exportData(); }
   else if(act==="import"){ importData(); }
+  else if(act==="history"){ openHistory(); }
   else if(act==="save"){ saveEditor(); }
 });
 
@@ -1219,6 +1272,42 @@ function importData(){
     r.readAsText(f); };
   inp.click();
 }
+
+const historyOverlay=$("#historyOverlay");
+function closeHistory(){ historyOverlay.classList.remove("show"); }
+async function openHistory(){
+  let list=[];
+  try{
+    const r=await fetch("/api/history",{credentials:"same-origin"});
+    if(!r.ok) throw new Error();
+    const j=await r.json();
+    list=j.history||[];
+  }catch(e){ alert("Couldn\u2019t load history."); return; }
+  const rows=list.length
+    ? list.map(h=>'<div class="history-row"><span class="history-when">'+escapeHtml(new Date(h.ts).toLocaleString())+(h.editor?'<span class="history-who">by '+escapeHtml(h.editor)+'</span>':'')+'</span><button class="btn danger" data-ts="'+h.ts+'">Restore</button></div>').join("")
+    : '<p class="det" style="padding:10px 0">No saved history yet \u2014 it starts recording from your next save.</p>';
+  historyOverlay.innerHTML =
+    '<div class="history-modal">'+
+      '<div class="history-head"><h2>Version History</h2><button class="btn" id="historyCloseBtn" style="margin-left:auto">Close</button></div>'+
+      '<div class="history-list">'+rows+'</div>'+
+    '</div>';
+  historyOverlay.classList.add("show");
+  $("#historyCloseBtn").addEventListener("click",closeHistory);
+  historyOverlay.querySelectorAll("[data-ts]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const when=btn.closest(".history-row").querySelector(".history-when").firstChild.textContent;
+    if(!confirm("Restore the guide to the version from "+when+"? Your current data will be saved as a new history entry first, so this can be undone.")) return;
+    btn.disabled=true; const origText=btn.textContent; btn.textContent="Restoring\u2026";
+    try{
+      const r=await fetch("/api/history",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({ts:Number(btn.dataset.ts)})});
+      if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||"restore failed"); }
+      await loadFromServer();
+      if(!findBoss(state.bossId)){ const fb=firstBoss(); state.bossId=fb?fb.id:null; }
+      state.abilityIndex=0; state.occTime=null; currentLoadedId=null; teardownPlayers();
+      closeHistory(); closeEditor(); render();
+    }catch(err){ alert("Couldn\u2019t restore: "+(err&&err.message?err.message:"unknown error")); btn.disabled=false; btn.textContent=origText; }
+  }));
+}
+
 $("#editGuideBtn").addEventListener("click",openEditor);
 
 async function loadMe(){
