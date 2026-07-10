@@ -518,7 +518,7 @@ const ROLE_META=[
   {key:"special",label:"Special Assignment",cls:"panel--special"}
 ];
 const ABILITY_TAGS=["Tankbuster","Add Spawn","Raid Damage","Movement","Debuffs","Raid AOE","Raid DOT","Group Soak","Spread"];
-const DIFFICULTIES=["Normal","Heroic","Mythic"];
+const DIFFICULTIES=["Mythic","Heroic","Normal"];
 function difficultyOrder(d){ const i=DIFFICULTIES.indexOf(d); return i<0?99:i; }
 function siblingDifficulties(boss){
   if(!boss||!boss.groupId) return [];
@@ -535,7 +535,16 @@ const $=s=>document.querySelector(s);
 function fmtTime(sec){sec=Math.max(0,Math.floor(sec||0));const m=Math.floor(sec/60),s=sec%60;return m+":"+String(s).padStart(2,"0");}
 function findRaid(id){ return RAID_DATA.find(r=>r.id===id); }
 function findBoss(id){ for(const r of RAID_DATA){ for(const b of (r.bosses||[])){ if(b.id===id) return b; } } return null; }
-function firstBoss(){ for(const r of RAID_DATA){ if((r.bosses||[]).length) return r.bosses[0]; } return null; }
+function firstBoss(){
+  for(const r of RAID_DATA){
+    const bosses=r.bosses||[];
+    if(!bosses.length) continue;
+    const b=bosses[0];
+    if(b.groupId){ const sibs=siblingDifficulties(b); if(sibs.length) return sibs[0]; }
+    return b;
+  }
+  return null;
+}
 function currentBoss(){ return findBoss(state.bossId) || firstBoss(); }
 function currentAbility(){const b=currentBoss();return b?(b.abilities||[])[state.abilityIndex]||{}:{};}
 function abilityTimes(ab){ if(ab&&Array.isArray(ab.times)&&ab.times.length) return ab.times.slice().filter(t=>typeof t==="number"); if(ab&&ab.time!=null) return [ab.time]; return [0]; }
@@ -755,8 +764,18 @@ function renderSideNav(){
     html+='<div class="raid-bosses'+(coll?" collapsed":"")+'" data-raidbosses="'+raid.id+'">';
     const bosses=raid.bosses||[];
     if(!bosses.length) html+='<div class="nav-empty">No bosses yet</div>';
+    const renderedGroups=new Set();
     bosses.forEach(b=>{
       const bdrag=layoutEdit?' draggable="true"':'';
+      if(!layoutEdit && b.groupId){
+        if(renderedGroups.has(b.groupId)) return; // already rendered this group's representative entry
+        renderedGroups.add(b.groupId);
+        const groupBosses=bosses.filter(gb=>gb.groupId===b.groupId);
+        const preferred=groupBosses.slice().sort((x,y)=>difficultyOrder(x.difficulty)-difficultyOrder(y.difficulty))[0];
+        const isActive=groupBosses.some(gb=>gb.id===state.bossId);
+        html+='<button class="nav-boss'+(isActive?" active":"")+'" data-boss="'+preferred.id+'" data-inraid="'+raid.id+'"><span class="txt">'+escapeHtml(preferred.name||"(unnamed)")+'</span></button>';
+        return;
+      }
       html+='<button class="nav-boss'+(b.id===state.bossId?" active":"")+'" data-boss="'+b.id+'" data-inraid="'+raid.id+'"'+bdrag+'>'+(layoutEdit?'<span class="grip">\u2630</span>':'')+'<span class="txt">'+escapeHtml(b.name||"(unnamed)")+(b.difficulty?" ("+escapeHtml(b.difficulty)+")":"")+'</span></button>';
     });
     html+='</div></div>';
