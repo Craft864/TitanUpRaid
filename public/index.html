@@ -73,7 +73,12 @@
   .diff-tab{font-family:var(--body); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:5px 12px; cursor:pointer; transition:.15s;}
   .diff-tab:hover{color:var(--text); border-color:var(--border-strong);}
   .diff-tab.active{color:#fff; border-color:transparent; background:var(--grad); box-shadow:0 3px 12px rgba(224,128,48,.28);}
-  .boss-head h2{font-family:var(--display); font-weight:700; font-size:29px; letter-spacing:-.7px; margin:0 0 10px; line-height:1.1; color:#fff;}
+  .boss-title-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 10px;}
+  .boss-head h2{font-family:var(--display); font-weight:700; font-size:29px; letter-spacing:-.7px; margin:0; line-height:1.1; color:#fff;}
+  .copy-link-btn{display:inline-flex; align-items:center; gap:6px; font-family:var(--body); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; cursor:pointer; transition:.15s;}
+  .copy-link-btn svg{width:14px; height:14px;}
+  .copy-link-btn:hover{color:var(--text); border-color:var(--border-strong);}
+  .copy-link-btn.copied{color:#fff; border-color:transparent; background:var(--role-healer);}
   .boss-head .overview{color:var(--muted); max-width:740px; font-size:14px;}
   .media{display:grid; grid-template-columns:1.75fr 1fr; gap:16px; margin:18px 0 8px; align-items:start;}
   .media.single{grid-template-columns:1fr;}
@@ -542,6 +547,41 @@ function firstBoss(){
 }
 function currentBoss(){ return findBoss(state.bossId) || firstBoss(); }
 function currentAbility(){const b=currentBoss();return b?(b.abilities||[])[state.abilityIndex]||{}:{};}
+
+/* ---------- shareable boss links (URL hash) ---------- */
+function slugify(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "boss"; }
+function bossSlug(b){ return slugify(b&&b.name); }
+function shareHashForBoss(b){ if(!b) return ""; return "#boss="+encodeURIComponent(bossSlug(b))+(b.difficulty?"&diff="+encodeURIComponent(b.difficulty):""); }
+function shareUrlForBoss(b){ return location.origin+location.pathname+shareHashForBoss(b); }
+function bossIdFromHash(){
+  const h=location.hash.replace(/^#/,""); if(!h) return null;
+  let params; try{ params=new URLSearchParams(h); }catch(e){ return null; }
+  const slug=params.get("boss"); if(!slug) return null;
+  const diff=(params.get("diff")||"").toLowerCase();
+  const matches=[];
+  RAID_DATA.forEach(r=>(r.bosses||[]).forEach(b=>{ if(bossSlug(b)===slug) matches.push(b); }));
+  if(!matches.length) return null;
+  if(diff){ const m=matches.find(b=>(b.difficulty||"").toLowerCase()===diff); if(m) return m.id; }
+  matches.sort((x,y)=>difficultyOrder(x.difficulty)-difficultyOrder(y.difficulty));
+  return matches[0].id;
+}
+function syncHashFromState(){
+  const b=currentBoss(); if(!b) return;
+  const want=shareHashForBoss(b);
+  // replaceState updates the address bar without firing hashchange (no render loop)
+  if(location.hash!==want){ try{ history.replaceState(null,"",location.pathname+location.search+want); }catch(e){} }
+}
+function applyHashToState(){
+  const id=bossIdFromHash();
+  if(id && id!==state.bossId){ state.bossId=id; state.abilityIndex=0; state.occTime=null; return true; }
+  return false;
+}
+function copyBossLink(btn){
+  const url=shareUrlForBoss(currentBoss());
+  const done=()=>{ const label=btn.querySelector("span"); if(!label) return; const prev=label.textContent; btn.classList.add("copied"); label.textContent="Copied!"; setTimeout(()=>{ btn.classList.remove("copied"); label.textContent=prev; },1600); };
+  const fallback=()=>{ const t=document.createElement("textarea"); t.value=url; t.style.position="fixed"; t.style.opacity="0"; document.body.appendChild(t); t.select(); try{ document.execCommand("copy"); done(); }catch(e){ prompt("Copy this link:",url); } t.remove(); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done,fallback); } else fallback();
+}
 function abilityTimes(ab){ if(ab&&Array.isArray(ab.times)&&ab.times.length) return ab.times.slice().filter(t=>typeof t==="number"); if(ab&&ab.time!=null) return [ab.time]; return [0]; }
 function bossOffset(b){ const n=b?Number(b.videoOffset):0; return isNaN(n)?0:n; }
 function saveCollapsed(){ try{ localStorage.setItem("titanup:collapsed", JSON.stringify(collapsed)); }catch(e){} }
@@ -906,6 +946,7 @@ function attachTimelineControls(vp){
 function render(){
   renderSideNav();
   { const cb=currentBoss(); if(cb) state.bossId=cb.id; }
+  syncHashFromState();
   const boss=currentBoss();
   const abilities=boss?boss.abilities||[]:[];
 
@@ -923,12 +964,14 @@ function render(){
   const sibs=siblingDifficulties(boss);
   const diffTabsHtml=sibs.length>1?'<div class="diff-tabs">'+sibs.map(sb=>'<button class="diff-tab'+(sb.id===(boss&&boss.id)?" active":"")+'" data-boss="'+sb.id+'">'+escapeHtml(sb.difficulty||"?")+'</button>').join("")+'</div>':"";
 
+  const copyBtn=boss?'<button class="copy-link-btn" id="copyLinkBtn" title="Copy a direct link to this boss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><span>Copy link</span></button>':"";
   $("#bossHead").innerHTML =
     '<div class="tier">'+escapeHtml(boss?boss.tier||"":"")+tag+'</div>'+
     diffTabsHtml+
-    '<h2>'+escapeHtml(boss?boss.name||"":"No boss data")+'</h2>'+
+    '<div class="boss-title-row"><h2>'+escapeHtml(boss?boss.name||"":"No boss data")+'</h2>'+copyBtn+'</div>'+
     '<p class="overview">'+escapeHtml(boss?boss.overview||"":"")+'</p>';
   $("#bossHead").querySelectorAll(".diff-tab").forEach(btn=>btn.addEventListener("click",()=>{ state.bossId=btn.dataset.boss; state.abilityIndex=0; state.occTime=null; render(); }));
+  { const cb=$("#copyLinkBtn"); if(cb) cb.addEventListener("click",()=>copyBossLink(cb)); }
 
   const gifUrl=(ability.gif||"").trim();
   const gifOk=/^https?:\/\//i.test(gifUrl);
@@ -1489,7 +1532,8 @@ async function loadMe(){
     }
   }catch(e){}
 }
-async function init(){ loadCollapsed(); resizeCanvas(); await Promise.all([loadFromServer(), loadMe()]); render(); }
+window.addEventListener("hashchange",()=>{ if(applyHashToState()) render(); });
+async function init(){ loadCollapsed(); resizeCanvas(); await Promise.all([loadFromServer(), loadMe()]); applyHashToState(); render(); }
 init();
 </script>
 </body>
