@@ -191,6 +191,13 @@
   .panel--dps{--role:var(--role-dps);}
   .panel--healer{--role:var(--role-healer);}
   .panel--special{--role:var(--role-special); background:linear-gradient(180deg,rgba(176,107,255,.09),transparent);}
+  .panel--custom{--role:#4fb8e0; background:linear-gradient(180deg,rgba(79,184,224,.09),transparent);}
+  .sec-list{margin-bottom:8px;}
+  .sec-row{border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; background:var(--bg-2);}
+  .sec-head{display:flex; gap:8px; align-items:center; margin-bottom:6px;}
+  .sec-title{flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--border); border-radius:7px; color:var(--text); padding:8px 10px; font-family:var(--body); font-size:13px; font-weight:600;}
+  .sec-body{width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:7px; color:var(--text); padding:8px 10px; font-family:var(--body); font-size:14px; min-height:52px; resize:vertical; line-height:1.5;}
+  .sec-title:focus, .sec-body:focus{outline:none; border-color:var(--orange-bright);}
   footer{max-width:1200px; margin:0 auto; padding:26px 22px 70px; color:var(--muted-2); font-size:12.5px; border-top:1px solid var(--border);}
   footer code{background:var(--panel-2); padding:2px 6px; border-radius:5px; color:var(--orange-bright);}
   @media (max-width:860px){ .media{grid-template-columns:1fr;} .panel-row{grid-template-columns:1fr;} .boss-head h2{font-size:28px;} .layout{grid-template-columns:1fr;} .sidebar{position:static; max-height:none; margin-bottom:8px;} }
@@ -588,6 +595,7 @@ function saveCollapsed(){ try{ localStorage.setItem("titanup:collapsed", JSON.st
 function loadCollapsed(){ try{ const r=localStorage.getItem("titanup:collapsed"); if(r) collapsed=JSON.parse(r)||{}; }catch(e){} }
 function escapeHtml(str){return String(str).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function roleContentHtml(c){ if(Array.isArray(c)) return "<ul>"+c.map(li=>"<li>"+escapeHtml(li)+"</li>").join("")+"</ul>"; return "<p>"+escapeHtml(c)+"</p>"; }
+function sectionContentHtml(body){ const lines=(body||"").split("\n").map(s=>s.trim()).filter(Boolean); if(!lines.length) return ""; if(lines.length===1) return "<p>"+escapeHtml(lines[0])+"</p>"; return "<ul>"+lines.map(li=>"<li>"+escapeHtml(li)+"</li>").join("")+"</ul>"; }
 function isAllowedRaidplanHost(url){
   try{ const u=new URL(url); if(u.protocol!=="https:") return false;
     const h=u.hostname.toLowerCase();
@@ -1018,6 +1026,10 @@ function render(){
   ROLE_META.forEach(r=>{ const c=info[r.key]; if(c&&!(Array.isArray(c)&&c.length===0)) byKey[r.key]='<div class="panel '+r.cls+'"><h3><span class="rdot"></span>'+r.label+'</h3>'+roleContentHtml(c)+'</div>'; });
   const row=["tank","dps","healer"].filter(k=>byKey[k]).map(k=>byKey[k]).join("");
   let panels=""; if(byKey.all) panels+=byKey.all; if(row) panels+='<div class="panel-row">'+row+'</div>'; if(byKey.special) panels+=byKey.special;
+  (Array.isArray(ability.sections)?ability.sections:[]).forEach(s=>{
+    const body=sectionContentHtml(s.body); const title=(s.title||"").trim();
+    if(title||body) panels+='<div class="panel panel--custom"><h3><span class="rdot"></span>'+escapeHtml(title||"Note")+'</h3>'+(body||"")+'</div>';
+  });
   if(!panels) panels='<div class="panel panel--all"><h3><span class="rdot"></span>For Everyone</h3><p>No notes yet for this ability. Add notes in the editor.</p></div>';
 
   const times=abilityTimes(ability);
@@ -1087,6 +1099,12 @@ function field(label,inner,help){
   return '<div class="field"><label>'+lbl+'</label>'+inner+'</div>';
 }
 
+function sectionRowsHtml(a,D){
+  return (a.sections||[]).map((s,si)=>'<div class="sec-row">'+
+    '<div class="sec-head"><input class="sec-title" '+D+' data-k="sectionTitle" data-si="'+si+'" value="'+escapeHtml(s.title||"")+'" placeholder="Section title — e.g. Phase 2, Recent changes"><button class="btn danger ed-x" data-action="delsection" '+D+' data-si="'+si+'" title="Remove section">×</button></div>'+
+    '<textarea class="sec-body" '+D+' data-k="sectionBody" data-si="'+si+'" placeholder="One note per line">'+escapeHtml(s.body||"")+'</textarea>'+
+    '</div>').join("");
+}
 function abilityBlock(a,ai){
   const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
@@ -1116,6 +1134,7 @@ function abilityBlock(a,ai){
       field("Healers",'<textarea '+D+' data-k="info.healer">'+escapeHtml(infoToLines(a.info&&a.info.healer))+'</textarea>')+
     '</div>'+
     field("Special assignment",'<textarea '+D+' data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>',"Optional.")+
+    field("Custom sections",'<div class="sec-list" id="seclist_'+r+'_'+b+'_'+ai+'">'+sectionRowsHtml(a,D)+'</div><button class="btn" data-action="addsection" '+D+' style="font-size:12px;padding:6px 10px">+ Add section</button>',"Optional. Your own titled panels shown alongside the role panels — e.g. phase-specific notes, or a log of recent changes to the fight. One note per line in each.")+
     '<button class="btn danger" data-action="delabil" data-a="'+ai+'">Delete ability</button>'+
   '</div></details>';
 }
@@ -1247,6 +1266,13 @@ overlay.addEventListener("input",function(e){
     else if(!t.checked && has) ab.tags=ab.tags.filter(x=>x!==tag);
     return;
   }
+  if(k==="sectionTitle"||k==="sectionBody"){
+    const ab=editData[r].bosses[Number(t.dataset.b)].abilities[Number(t.dataset.a)];
+    ab.sections=ab.sections||[]; const si=Number(t.dataset.si);
+    ab.sections[si]=ab.sections[si]||{title:"",body:""};
+    if(k==="sectionTitle") ab.sections[si].title=t.value; else ab.sections[si].body=t.value;
+    return;
+  }
   const bi=(t.dataset.b!=null)?Number(t.dataset.b):null;
   const ai=(t.dataset.a!=null)?Number(t.dataset.a):null;
   let obj, scope;
@@ -1299,6 +1325,15 @@ overlay.addEventListener("click",function(e){
   else if(act==="addphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b); const bb=editData[ri].bosses[bi]; bb.phases=bb.phases||[]; bb.phases.push({id:"phase_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", time:0}); renderEditor(); }
   else if(act==="delphase"){ const ri=Number(btn.dataset.r), bi=Number(btn.dataset.b), p=Number(btn.dataset.p); editData[ri].bosses[bi].phases.splice(p,1); renderEditor(); }
   else if(act==="delabil"){ const removed=editData[editRaidIdx].bosses[editBossIdx].abilities.splice(Number(btn.dataset.a),1)[0]; queueImageDeletes(collectImageUrlsFromAbility(removed)); renderEditor(); }
+  else if(act==="addsection"||act==="delsection"){
+    const r=Number(btn.dataset.r), b=Number(btn.dataset.b), ai=Number(btn.dataset.a);
+    const ab=editData[r].bosses[b].abilities[ai]; ab.sections=ab.sections||[];
+    if(act==="addsection") ab.sections.push({title:"",body:""});
+    else { ab.sections.splice(Number(btn.dataset.si),1); if(!ab.sections.length) delete ab.sections; }
+    // re-render just this ability's section list so its editor panel stays open
+    const c=document.getElementById("seclist_"+r+"_"+b+"_"+ai);
+    if(c) c.innerHTML=sectionRowsHtml(ab,'data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"');
+  }
   else if(act==="uploadgif"){
     const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a);
     const ab=editData[r].bosses[bi].abilities[ai];
