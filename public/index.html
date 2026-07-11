@@ -1073,7 +1073,9 @@ function infoToLines(v){ if(v==null) return ""; if(Array.isArray(v)) return v.jo
 function videoUrlFor(p,id){ if(!id) return ""; return p==="twitch" ? "https://www.twitch.tv/videos/"+id : "https://youtu.be/"+id; }
 function detText(p,id){ return id ? ((p||"youtube")+" \u00b7 id "+id) : "Paste a YouTube or Twitch URL"; }
 function blankBoss(){ return {id:"boss_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", tier:"", overview:"", platform:"youtube", videoId:"", abilities:[]}; }
-function blankAbility(){ return {id:"abil_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"New Ability", time:0, info:{}}; }
+function blankAbility(){ return {id:"abil_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", info:{}}; }
+// blank when the ability has no time set yet (new ability) so the box shows placeholder text instead of "0:00"
+function abilTimesValue(a){ if(a&&Array.isArray(a.times)&&a.times.length) return a.times.filter(t=>typeof t==="number").map(secToClock).join(", "); if(a&&a.time!=null) return secToClock(a.time); return ""; }
 function blankRaid(){ return {id:"raid_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", bosses:[]}; }
 
 let editData=null, editRaidIdx=0, editBossIdx=-1;
@@ -1164,10 +1166,10 @@ function abilBodyInnerHtml(a,r,b,ai){
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
   const boss=editData[r].bosses[b];
   let html='<div class="roles-grid">'+
-    field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
-    field("Times",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">',"Format: mm:ss, comma-separated. One ability can hit multiple times.")+
-    field("Duration",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">',"Optional, in seconds.")+
-    field("Phase label",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">',"Optional — a short tag shown next to the ability’s times.")+
+    field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'" placeholder="Ability name">')+
+    field("Times",'<input '+D+' data-k="times" value="'+escapeHtml(abilTimesValue(a))+'" placeholder="mm:ss, comma-separated">',"Format: mm:ss, comma-separated. One ability can hit multiple times.")+
+    field("Duration",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'" placeholder="seconds">',"Optional, in seconds.")+
+    field("Phase label",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'" placeholder="e.g. P1">',"Optional — a short tag shown next to the ability’s times.")+
   '</div>';
   ABIL_OPTIONAL_FIELDS.forEach(f=>{ if(abilFieldShown(a,f.key)) html+=abilOptionalFieldHtml(f.key,a,r,b,ai,D,boss); });
   const chips=ABIL_OPTIONAL_FIELDS.filter(f=>!abilFieldShown(a,f.key)).map(f=>'<button class="add-field-chip" data-action="revealfield" '+D+' data-field="'+f.key+'">+ '+escapeHtml(f.label)+'</button>').join("");
