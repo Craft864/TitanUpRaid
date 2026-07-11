@@ -198,6 +198,10 @@
   .sec-title{flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--border); border-radius:7px; color:var(--text); padding:8px 10px; font-family:var(--body); font-size:13px; font-weight:600;}
   .sec-body{width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:7px; color:var(--text); padding:8px 10px; font-family:var(--body); font-size:14px; min-height:52px; resize:vertical; line-height:1.5;}
   .sec-title:focus, .sec-body:focus{outline:none; border-color:var(--orange-bright);}
+  .add-field-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:2px 0 4px;}
+  .add-field-lbl{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--muted-2); margin-right:2px;}
+  .add-field-chip{font-family:var(--body); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel-2); border:1px dashed var(--border-strong); border-radius:999px; padding:5px 11px; cursor:pointer; transition:.13s;}
+  .add-field-chip:hover{color:var(--text); border-color:var(--orange-bright); background:var(--panel);}
   footer{max-width:1200px; margin:0 auto; padding:26px 22px 70px; color:var(--muted-2); font-size:12.5px; border-top:1px solid var(--border);}
   footer code{background:var(--panel-2); padding:2px 6px; border-radius:5px; color:var(--orange-bright);}
   @media (max-width:860px){ .media{grid-template-columns:1fr;} .panel-row{grid-template-columns:1fr;} .boss-head h2{font-size:28px;} .layout{grid-template-columns:1fr;} .sidebar{position:static; max-height:none; margin-bottom:8px;} }
@@ -436,6 +440,7 @@ function ensureIds(){
     r.bosses.forEach((b,bi)=>{
       if(!b.id) b.id="boss_"+ri+"_"+bi+"_"+Math.random().toString(36).slice(2,7);
       (b.phases||[]).forEach((p,pi)=>{ if(p&&!p.id) p.id="phase_"+ri+"_"+bi+"_"+pi+"_"+Math.random().toString(36).slice(2,7); });
+      (b.abilities||[]).forEach((a,ai)=>{ if(a&&!a.id) a.id="abil_"+ri+"_"+bi+"_"+ai+"_"+Math.random().toString(36).slice(2,7); });
       // migrate legacy anchors that stored a phase name instead of its (now stable) id
       (b.abilities||[]).forEach(a=>{
         if(a&&a.anchor&&(b.phases||[]).length && !(b.phases||[]).some(p=>p.id===a.anchor)){
@@ -1068,10 +1073,11 @@ function infoToLines(v){ if(v==null) return ""; if(Array.isArray(v)) return v.jo
 function videoUrlFor(p,id){ if(!id) return ""; return p==="twitch" ? "https://www.twitch.tv/videos/"+id : "https://youtu.be/"+id; }
 function detText(p,id){ return id ? ((p||"youtube")+" \u00b7 id "+id) : "Paste a YouTube or Twitch URL"; }
 function blankBoss(){ return {id:"boss_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", tier:"", overview:"", platform:"youtube", videoId:"", abilities:[]}; }
-function blankAbility(){ return {name:"New Ability", time:0, desc:"", gif:"", info:{}}; }
+function blankAbility(){ return {id:"abil_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"New Ability", time:0, info:{}}; }
 function blankRaid(){ return {id:"raid_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), name:"", bosses:[]}; }
 
 let editData=null, editRaidIdx=0, editBossIdx=-1;
+let revealedAbilFields={}; // abilityId -> Set of optional field keys revealed this session (transient UI state, not saved)
 let sessionUploads=[]; // images uploaded during this editor session, for cleanup if it's cancelled
 let pendingImageDeletes=[]; // deletions requested during this session; executed only after a successful save
 let editorOpenedAtTs; // latest history ts as of opening the editor, for save-conflict detection
@@ -1082,6 +1088,7 @@ function openEditor(){
   if(!editData.length) editData=[blankRaid()];
   if(editRaidIdx>=editData.length) editRaidIdx=0;
   editBossIdx=(editData[editRaidIdx].bosses||[]).length?0:-1;
+  revealedAbilFields={};
   sessionUploads=[];
   pendingImageDeletes=[];
   editorOpenedAtTs=undefined;
@@ -1105,38 +1112,73 @@ function sectionRowsHtml(a,D){
     '<textarea class="sec-body" '+D+' data-k="sectionBody" data-si="'+si+'" placeholder="One note per line">'+escapeHtml(s.body||"")+'</textarea>'+
     '</div>').join("");
 }
-function abilityBlock(a,ai){
-  const r=editRaidIdx, b=editBossIdx, url=videoUrlFor(a.platform||"", a.videoId||"");
+// Optional ability fields are add-on-demand: hidden until they have content or
+// the editor clicks "+ Add", so a fresh ability isn't a wall of every field.
+const ABIL_OPTIONAL_FIELDS=[
+  {key:"info.all", label:"Notes: Everyone"},
+  {key:"info.tank", label:"Notes: Tanks"},
+  {key:"info.dps", label:"Notes: DPS"},
+  {key:"info.healer", label:"Notes: Healers"},
+  {key:"info.special", label:"Special assignment"},
+  {key:"desc", label:"Description"},
+  {key:"tags", label:"Ability type"},
+  {key:"anchor", label:"Phase anchor"},
+  {key:"gif", label:"GIF"},
+  {key:"images", label:"Images"},
+  {key:"videourl", label:"Video override"},
+  {key:"raidplanUrl", label:"Raid plan"},
+  {key:"sections", label:"Custom sections"}
+];
+function abilFieldHasData(a,key){
+  if(key==="anchor") return !!a.anchor;
+  if(key==="tags") return (a.tags||[]).length>0;
+  if(key==="videourl") return !!a.videoId;
+  if(key==="images") return (a.images||[]).length>0;
+  if(key==="sections") return (a.sections||[]).length>0;
+  if(key.indexOf("info.")===0){ const role=key.slice(5); return !!(infoToLines(a.info&&a.info[role])||"").trim(); }
+  return !!((a[key]!=null?a[key]:"")+"").trim();
+}
+function abilFieldShown(a,key){ return abilFieldHasData(a,key) || (revealedAbilFields[a.id] && revealedAbilFields[a.id].has(key)); }
+function abilOptionalFieldHtml(key,a,r,b,ai,D,boss){
+  if(key==="anchor"){
+    const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.id)+'"'+(a.anchor===p.id?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
+    return field("Anchor to a phase",'<select '+D+' data-k="anchor">'+anchorOpts+'</select>',"Optional. When anchored, the Times above are counted from that phase’s start instead of from the pull. Move the phase’s start time (in the boss’s Phase timings) to shift all its abilities together — handy for health-threshold phases.");
+  }
+  if(key==="tags") return field("Ability type",'<div class="tag-chips">'+ABILITY_TAGS.map(tag=>'<label class="tag-chip"><input type="checkbox" '+D+' data-k="tag" data-tag="'+escapeHtml(tag)+'"'+((a.tags||[]).includes(tag)?" checked":"")+'>'+escapeHtml(tag)+'</label>').join("")+'</div>',"Select all that apply.");
+  if(key==="videourl"){ const url=videoUrlFor(a.platform||"", a.videoId||"");
+    return field("Video override URL",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>',"Optional — leave blank to use the boss’s default video."); }
+  if(key==="desc") return field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>');
+  if(key==="gif") return field("GIF URL",'<div style="display:flex;gap:8px"><input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'" style="flex:1"><button class="btn" data-action="uploadgif" '+D+'>Upload</button>'+(a.gif?'<button class="btn danger" data-action="delgifimg" '+D+' title="Remove image">×</button>':"")+'</div>',"Optional. Paste an image from your clipboard, paste/type a URL, or click Upload.");
+  if(key==="raidplanUrl") return field("Raid plan override",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(a.raidplanUrl||"")+'">',"Optional — only needed if this specific ability has its own raidstrats.gg plan (e.g. a soak assignment), different from the boss’s overall Raid Plan. Must be an https://raidstrats.gg embed link.");
+  if(key==="images"){ const imgThumbs=(a.images||[]).map((u,ii)=>'<div class="img-thumb"><img src="'+escapeHtml(u)+'" loading="lazy"><button class="img-thumb-x" data-action="delabilimg" '+D+' data-i="'+ii+'" title="Remove image">×</button></div>').join("");
+    return field("Raid planning images",'<div class="img-thumbs" data-imgdrop tabindex="0" title="Click, then Ctrl+V to paste a copied image" '+D+'>'+(imgThumbs||'<div class="img-thumbs-empty">No images yet</div>')+'</div><button class="btn" data-action="uploadimages" '+D+'>Upload image(s)</button>',"Optional. Upload, or click the box and paste (Ctrl+V) a copied image. Screenshots or diagrams for this ability — positioning charts, soak assignments, etc. Shown as a small gallery under the description."); }
+  if(key==="info.all") return field("For everyone",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>',"One note per line.");
+  if(key==="info.tank") return field("Tanks",'<textarea '+D+' data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>',"One note per line.");
+  if(key==="info.dps") return field("DPS",'<textarea '+D+' data-k="info.dps">'+escapeHtml(infoToLines(a.info&&a.info.dps))+'</textarea>',"One note per line.");
+  if(key==="info.healer") return field("Healers",'<textarea '+D+' data-k="info.healer">'+escapeHtml(infoToLines(a.info&&a.info.healer))+'</textarea>',"One note per line.");
+  if(key==="info.special") return field("Special assignment",'<textarea '+D+' data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>',"Optional.");
+  if(key==="sections") return field("Custom sections",'<div class="sec-list" id="seclist_'+r+'_'+b+'_'+ai+'">'+sectionRowsHtml(a,D)+'</div><button class="btn" data-action="addsection" '+D+' style="font-size:12px;padding:6px 10px">+ Add section</button>',"Optional. Your own titled panels shown alongside the role panels — e.g. phase-specific notes, or a log of recent changes to the fight. One note per line in each.");
+  return "";
+}
+function abilBodyInnerHtml(a,r,b,ai){
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
   const boss=editData[r].bosses[b];
-  const anchorOpts='<option value="">None (time from pull)</option>'+(boss.phases||[]).filter(p=>p&&p.name).map(p=>'<option value="'+escapeHtml(p.id)+'"'+(a.anchor===p.id?" selected":"")+'>'+escapeHtml(p.name)+'</option>').join("");
-  const anchorPhase=a.anchor?(boss.phases||[]).find(p=>p&&p.id===a.anchor):null;
-  const imgs=a.images||[];
-  const imgThumbs=imgs.map((u,ii)=>'<div class="img-thumb"><img src="'+escapeHtml(u)+'" loading="lazy"><button class="img-thumb-x" data-action="delabilimg" '+D+' data-i="'+ii+'" title="Remove image">×</button></div>').join("");
-  return '<details class="abil" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" draggable="true" title="Drag to reorder">\u2630</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" \u00b7 "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body">'+
-    '<div class="roles-grid">'+
-      field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
-      field("Times",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">',"Format: mm:ss, comma-separated. One ability can hit multiple times.")+
-      field("Duration",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">',"Optional, in seconds.")+
-      field("Phase label",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">',"Optional — a short tag shown next to the ability’s times.")+
-    '</div>'+
-    field("Anchor to a phase",'<select '+D+' data-k="anchor">'+anchorOpts+'</select>',"Optional. When anchored, the Times above are counted from that phase\u2019s start instead of from the pull. Move the phase\u2019s start time (in the boss\u2019s Phase timings) to shift all its abilities together \u2014 handy for health-threshold phases.")+
-    field("Ability type",'<div class="tag-chips">'+ABILITY_TAGS.map(tag=>'<label class="tag-chip"><input type="checkbox" '+D+' data-k="tag" data-tag="'+escapeHtml(tag)+'"'+((a.tags||[]).includes(tag)?" checked":"")+'>'+escapeHtml(tag)+'</label>').join("")+'</div>',"Select all that apply.")+
-    field("Video override URL",'<input '+D+' data-k="videourl" data-det="det'+r+'_'+b+'_'+ai+'" value="'+escapeHtml(url)+'"><div class="det" id="det'+r+'_'+b+'_'+ai+'">'+(a.videoId?detText(a.platform,a.videoId):"Inherits the boss video")+'</div>',"Optional \u2014 leave blank to use the boss\u2019s default video.")+
-    field("Description",'<textarea '+D+' data-k="desc">'+escapeHtml(a.desc||"")+'</textarea>')+
-    field("GIF URL",'<div style="display:flex;gap:8px"><input '+D+' data-k="gif" value="'+escapeHtml(a.gif||"")+'" style="flex:1"><button class="btn" data-action="uploadgif" '+D+'>Upload</button>'+(a.gif?'<button class="btn danger" data-action="delgifimg" '+D+' title="Remove image">×</button>':"")+'</div>',"Optional. Paste an image from your clipboard, paste/type a URL, or click Upload.")+
-    field("Raid plan override",'<input '+D+' data-k="raidplanUrl" value="'+escapeHtml(a.raidplanUrl||"")+'">',"Optional — only needed if this specific ability has its own raidstrats.gg plan (e.g. a soak assignment), different from the boss’s overall Raid Plan. Must be an https://raidstrats.gg embed link.")+
-    field("Raid planning images",'<div class="img-thumbs" data-imgdrop tabindex="0" title="Click, then Ctrl+V to paste a copied image" '+D+'>'+(imgThumbs||'<div class="img-thumbs-empty">No images yet</div>')+'</div><button class="btn" data-action="uploadimages" '+D+'>Upload image(s)</button>',"Optional. Upload, or click the box and paste (Ctrl+V) a copied image. Screenshots or diagrams for this ability — positioning charts, soak assignments, etc. Shown as a small gallery under the description.")+
-    '<div class="roles-grid">'+
-      field("For everyone",'<textarea '+D+' data-k="info.all">'+escapeHtml(infoToLines(a.info&&a.info.all))+'</textarea>',"One note per line.")+
-      field("Tanks",'<textarea '+D+' data-k="info.tank">'+escapeHtml(infoToLines(a.info&&a.info.tank))+'</textarea>')+
-      field("DPS",'<textarea '+D+' data-k="info.dps">'+escapeHtml(infoToLines(a.info&&a.info.dps))+'</textarea>')+
-      field("Healers",'<textarea '+D+' data-k="info.healer">'+escapeHtml(infoToLines(a.info&&a.info.healer))+'</textarea>')+
-    '</div>'+
-    field("Special assignment",'<textarea '+D+' data-k="info.special">'+escapeHtml(infoToLines(a.info&&a.info.special))+'</textarea>',"Optional.")+
-    field("Custom sections",'<div class="sec-list" id="seclist_'+r+'_'+b+'_'+ai+'">'+sectionRowsHtml(a,D)+'</div><button class="btn" data-action="addsection" '+D+' style="font-size:12px;padding:6px 10px">+ Add section</button>',"Optional. Your own titled panels shown alongside the role panels — e.g. phase-specific notes, or a log of recent changes to the fight. One note per line in each.")+
-    '<button class="btn danger" data-action="delabil" data-a="'+ai+'">Delete ability</button>'+
-  '</div></details>';
+  let html='<div class="roles-grid">'+
+    field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'">')+
+    field("Times",'<input '+D+' data-k="times" value="'+escapeHtml(abilityTimes(a).map(secToClock).join(", "))+'">',"Format: mm:ss, comma-separated. One ability can hit multiple times.")+
+    field("Duration",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'">',"Optional, in seconds.")+
+    field("Phase label",'<input '+D+' data-k="phase" value="'+escapeHtml(a.phase||"")+'">',"Optional — a short tag shown next to the ability’s times.")+
+  '</div>';
+  ABIL_OPTIONAL_FIELDS.forEach(f=>{ if(abilFieldShown(a,f.key)) html+=abilOptionalFieldHtml(f.key,a,r,b,ai,D,boss); });
+  const chips=ABIL_OPTIONAL_FIELDS.filter(f=>!abilFieldShown(a,f.key)).map(f=>'<button class="add-field-chip" data-action="revealfield" '+D+' data-field="'+f.key+'">+ '+escapeHtml(f.label)+'</button>').join("");
+  if(chips) html+='<div class="add-field-row"><span class="add-field-lbl">Add:</span>'+chips+'</div>';
+  html+='<button class="btn danger" data-action="delabil" data-a="'+ai+'" style="margin-top:12px">Delete ability</button>';
+  return html;
+}
+function abilityBlock(a,ai){
+  const r=editRaidIdx, b=editBossIdx;
+  const anchorPhase=a.anchor?(editData[r].bosses[b].phases||[]).find(p=>p&&p.id===a.anchor):null;
+  return '<details class="abil" data-abilrow data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"><summary><span class="grip" draggable="true" title="Drag to reorder">☰</span><strong>'+escapeHtml(a.name||"(unnamed)")+'</strong><span class="det" style="margin:0">'+abilityTimes(a).map(secToClock).join(", ")+(anchorPhase?" after "+escapeHtml(anchorPhase.name||"(unnamed phase)"):"")+(a.phase?" · "+escapeHtml(a.phase):"")+'</span></summary><div class="abil-body" id="abilbody_'+r+'_'+b+'_'+ai+'">'+abilBodyInnerHtml(a,r,b,ai)+'</div></details>';
 }
 
 function editorSiblingDifficulties(r,boss){
@@ -1333,6 +1375,14 @@ overlay.addEventListener("click",function(e){
     // re-render just this ability's section list so its editor panel stays open
     const c=document.getElementById("seclist_"+r+"_"+b+"_"+ai);
     if(c) c.innerHTML=sectionRowsHtml(ab,'data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"');
+  }
+  else if(act==="revealfield"){
+    const r=Number(btn.dataset.r), b=Number(btn.dataset.b), ai=Number(btn.dataset.a), fkey=btn.dataset.field;
+    const ab=editData[r].bosses[b].abilities[ai];
+    (revealedAbilFields[ab.id]=revealedAbilFields[ab.id]||new Set()).add(fkey);
+    // re-render just this ability's body so its <details> stays open
+    const c=document.getElementById("abilbody_"+r+"_"+b+"_"+ai);
+    if(c){ c.innerHTML=abilBodyInnerHtml(ab,r,b,ai); const el=c.querySelector('[data-k="'+fkey+'"]'); if(el&&el.focus) el.focus(); }
   }
   else if(act==="uploadgif"){
     const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a);
