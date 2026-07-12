@@ -116,9 +116,6 @@
   .card.theater .annotate-bar{border:1px solid var(--border); border-bottom:0; border-radius:12px 12px 0 0; background:var(--panel-solid);}
   .card.theater .video-stage{border-radius:0;}
   .card.theater .hint{border:1px solid var(--border); border-top:0; border-radius:0 0 12px 12px; background:var(--panel-solid);}
-  .platform-tag{display:inline-block; font-family:var(--display); font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; padding:3px 9px; border-radius:999px; margin-left:8px; vertical-align:middle;}
-  .platform-tag.youtube{color:#ff5a5f; background:rgba(255,90,95,.14);}
-  .platform-tag.twitch{color:var(--purple-soft); background:rgba(145,71,255,.16);}
   .gif-wrap{width:100%; aspect-ratio:16/10; background:#0a0910; display:grid; place-items:center; overflow:hidden;}
   .gif-wrap img{width:100%; height:100%; object-fit:cover;}
   .gif-empty{color:var(--muted-2); font-size:13px; padding:22px; text-align:center;}
@@ -532,6 +529,8 @@ const ROLE_META=[
 const ABILITY_TAGS=["Tankbuster","Add Spawn","Raid Damage","Movement","Debuffs","Raid AOE","Raid DOT","Group Soak","Spread"];
 const DIFFICULTIES=["Mythic","Heroic","Normal"];
 function difficultyOrder(d){ const i=DIFFICULTIES.indexOf(d); return i<0?99:i; }
+// WoW item-quality colors: Mythic = Legendary, Heroic = Epic, Normal = Rare
+function difficultyColor(d){ return d==="Mythic"?"#ff8000":d==="Heroic"?"#a335ee":d==="Normal"?"#0070dd":""; }
 function siblingDifficulties(boss){
   if(!boss||!boss.groupId) return [];
   const sibs=[];
@@ -971,15 +970,17 @@ function render(){
   let active=nodes.findIndex(n=>n.ai===state.abilityIndex && n.t===state.occTime);
   if(active<0){ if(nodes.length){ active=0; state.abilityIndex=nodes[0].ai; state.occTime=nodes[0].t; } else { state.abilityIndex=0; state.occTime=null; } }
   const ability=abilities[state.abilityIndex]||{};
-  const platform=(ability.platform||(boss&&boss.platform)||"youtube");
-  const tag='<span class="platform-tag '+platform+'">'+platform+'</span>';
+
+  const diffWord=boss&&boss.difficulty?boss.difficulty:"";
+  const diffColor=difficultyColor(diffWord);
+  const diffLabelHtml=diffWord?'<div class="tier"'+(diffColor?' style="color:'+diffColor+'"':'')+'>'+escapeHtml(diffWord)+'</div>':'';
 
   const sibs=siblingDifficulties(boss);
   const diffTabsHtml=sibs.length>1?'<div class="diff-tabs">'+sibs.map(sb=>'<button class="diff-tab'+(sb.id===(boss&&boss.id)?" active":"")+'" data-boss="'+sb.id+'">'+escapeHtml(sb.difficulty||"?")+'</button>').join("")+'</div>':"";
 
   const copyBtn=boss?'<button class="copy-link-btn" id="copyLinkBtn" title="Copy a direct link to this boss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><span>Copy link</span></button>':"";
   $("#bossHead").innerHTML =
-    '<div class="tier">'+escapeHtml(boss?boss.tier||"":"")+tag+'</div>'+
+    diffLabelHtml+
     diffTabsHtml+
     '<div class="boss-title-row"><h2>'+escapeHtml(boss?boss.name||"":"No boss data")+'</h2>'+copyBtn+'</div>'+
     '<p class="overview">'+escapeHtml(boss?boss.overview||"":"")+'</p>';
@@ -1213,10 +1214,7 @@ function bossEditorHtml(){
       dupControl+
     '</div>';
   return editorDiffTabs+topRow+
-    '<div class="roles-grid">'+
-      field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
-      field("Tier / label",'<input '+D+' data-k="tier" value="'+escapeHtml(b.tier||"")+'">',"Small text shown above the boss name on the boss page.")+
-    '</div>'+
+    field("Boss name",'<input '+D+' data-k="name" value="'+escapeHtml(b.name||"")+'" placeholder="Boss name">')+
     field("Overview",'<textarea '+D+' data-k="overview">'+escapeHtml(b.overview||"")+'</textarea>')+
     '<div class="roles-grid">'+
       field("Default video URL",'<input '+D+' data-k="videourl" data-det="detboss" value="'+escapeHtml(videoUrlFor(b.platform||"youtube",b.videoId||""))+'"><div class="det" id="detboss">'+detText(b.platform,b.videoId)+'</div>',"YouTube or Twitch.")+
