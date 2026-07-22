@@ -65,8 +65,8 @@
   .ed-raid-head{display:flex; gap:6px; align-items:center; margin-bottom:6px;}
   .ed-raidname{flex:1; background:var(--bg-2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:var(--display); font-weight:600; font-size:12.5px; padding:7px 9px;}
   .ed-x{padding:6px 11px; line-height:1;}
-  .ed-raid-head .ed-x{font-size:15px; background:rgba(255,90,95,.10);}
   .ed-addboss{width:100%; margin-top:5px; font-size:12px; padding:6px;}
+  .ed-delraid{width:100%; margin-top:5px; font-size:11.5px; padding:5px;}
   .boss-head{margin-bottom:20px;}
   .boss-head .tier{font-family:var(--display); font-size:11px; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:var(--orange-bright); margin-bottom:10px;}
   .diff-tabs{display:flex; gap:6px; margin-bottom:10px;}
@@ -1241,7 +1241,7 @@ function renderEditor(){
   let outline="";
   editData.forEach((raid,ri)=>{
     outline+='<div class="ed-raid">'+
-      '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'" placeholder="Raid name"><button class="btn danger ed-x" data-action="delraid" data-r="'+ri+'" title="Delete raid">\u00d7</button></div>';
+      '<div class="ed-raid-head"><input class="ed-raidname" data-r="'+ri+'" data-k="raidname" value="'+escapeHtml(raid.name||"")+'" placeholder="Raid name"></div>';
     const renderedGroups=new Set();
     (raid.bosses||[]).forEach((b,bi)=>{
       if(b.groupId){
@@ -1257,7 +1257,8 @@ function renderEditor(){
       const sel=(ri===editRaidIdx&&bi===editBossIdx);
       outline+='<button class="bl'+(sel?" sel":"")+'" data-action="selboss" data-r="'+ri+'" data-b="'+bi+'">'+escapeHtml(b.name||"(unnamed)")+'</button>';
     });
-    outline+='<button class="btn ed-addboss" data-action="addboss" data-r="'+ri+'">+ Add boss</button></div>';
+    outline+='<button class="btn ed-addboss" data-action="addboss" data-r="'+ri+'">+ Add boss</button>'+
+      '<button class="btn danger ed-delraid" data-action="delraid" data-r="'+ri+'">Delete raid</button></div>';
   });
   outline+='<button class="btn" data-action="addraid" style="width:100%;margin-top:6px">+ Add raid</button>';
 
