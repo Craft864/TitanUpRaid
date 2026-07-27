@@ -36,6 +36,7 @@ export default {
       if (path === "/api/me") return handleMe(request, env);
       if (path === "/api/data") return handleData(request, env);
       if (path === "/api/history") return handleHistory(request, env);
+      if (path.startsWith("/api/spell/")) return handleSpell(request, env, decodeURIComponent(path.slice("/api/spell/".length)));
       if (path === "/api/upload") return handleUpload(request, env);
       if (path.startsWith("/img/")) return handleImage(request, env, decodeURIComponent(path.slice(5)));
       return handleApp(request, env);
@@ -283,6 +284,37 @@ async function handleHistory(request, env) {
     return json({ ok: true });
   }
   return json({ error: "method not allowed" }, 405);
+}
+
+// Look up a spell from Blizzard's Game Data API (live realms only -- no PTR/beta
+// content). Reuses the client-credentials app token already used for the roster.
+async function handleSpell(request, env, spellId) {
+  const s = await getSession(request, env);
+  if (!s || !s.isEditor) return json({ error: "forbidden" }, 403);
+  spellId = (spellId || "").trim();
+  if (!/^\d+$/.test(spellId)) return json({ error: "Spell ID must be a number." }, 400);
+
+  const region = env.BNET_REGION || "us";
+  const ns = "static-" + region;
+  const base = "https://" + region + ".api.blizzard.com";
+  let token;
+  try { token = await getAppToken(env); } catch (e) { return json({ error: "Couldn’t authenticate with Blizzard. Try again." }, 502); }
+
+  const spellRes = await fetch(base + "/data/wow/spell/" + spellId + "?namespace=" + ns + "&locale=en_US", { headers: { Authorization: "Bearer " + token } });
+  if (spellRes.status === 404) return json({ error: "No spell with that ID on live realms (PTR/unreleased spells aren’t available)." }, 404);
+  if (!spellRes.ok) return json({ error: "Blizzard lookup failed (" + spellRes.status + ")." }, 502);
+  const spell = await spellRes.json();
+
+  let icon = "";
+  try {
+    const mediaRes = await fetch(base + "/data/wow/media/spell/" + spellId + "?namespace=" + ns, { headers: { Authorization: "Bearer " + token } });
+    if (mediaRes.ok) { const m = await mediaRes.json(); const a = (m.assets || []).find(x => x && x.key === "icon"); if (a) icon = a.value || ""; }
+  } catch (e) { /* icon is best-effort */ }
+
+  // with locale=en_US these come back as plain strings; guard in case they don't
+  const name = typeof spell.name === "string" ? spell.name : "";
+  const description = typeof spell.description === "string" ? spell.description : "";
+  return json({ id: Number(spellId), name, description, icon });
 }
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB is far beyond any raid-plan screenshot

@@ -163,8 +163,11 @@
   .abil.dragging{opacity:.4;} .abil.drag-target{outline:2px dashed var(--orange-bright); outline-offset:1px;}
   .section-title{font-family:var(--display); font-size:12px; font-weight:600; letter-spacing:1.3px; color:var(--muted); margin-bottom:14px; text-transform:uppercase;}
   .section-title .scope-tag{font-weight:500; letter-spacing:.3px; text-transform:none; color:var(--muted-2);}
-  .ability-title{font-family:var(--display); font-weight:700; font-size:20px; letter-spacing:-.4px; color:#fff; margin:4px 0 4px;}
+  .ability-title{font-family:var(--display); font-weight:700; font-size:20px; letter-spacing:-.4px; color:#fff; margin:4px 0 4px; display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
   .ability-title span{font-family:var(--body); font-weight:500; color:var(--muted); font-size:13px;}
+  .ability-spell-icon{width:26px; height:26px; border-radius:6px; border:1px solid var(--border); flex:none;}
+  .wowhead-link{font-family:var(--body); font-size:12px; font-weight:600; color:var(--orange-bright); text-decoration:none; border:1px solid var(--border); border-radius:999px; padding:3px 10px;}
+  .wowhead-link:hover{border-color:var(--border-strong);}
   .ability-desc{color:var(--muted); margin:0 0 16px; max-width:800px; font-size:14px;}
   .ability-images{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:0 0 22px;}
   .ability-images a{display:block; border-radius:10px; overflow:hidden; border:1px solid var(--border); aspect-ratio:16/10; background:#0a0910;}
@@ -199,6 +202,9 @@
   .add-field-lbl{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--muted-2); margin-right:2px;}
   .add-field-chip{font-family:var(--body); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel-2); border:1px dashed var(--border-strong); border-radius:999px; padding:5px 11px; cursor:pointer; transition:.13s;}
   .add-field-chip:hover{color:var(--text); border-color:var(--orange-bright); background:var(--panel);}
+  .spell-lookup{display:flex; gap:8px; align-items:center;}
+  .spell-lookup input{flex:1; min-width:0;}
+  .spell-lookup-icon{width:32px; height:32px; border-radius:7px; border:1px solid var(--border); flex:none;}
   footer{max-width:1200px; margin:0 auto; padding:26px 22px 70px; color:var(--muted-2); font-size:12.5px; border-top:1px solid var(--border);}
   footer code{background:var(--panel-2); padding:2px 6px; border-radius:5px; color:var(--orange-bright);}
   @media (max-width:860px){ .media{grid-template-columns:1fr;} .panel-row{grid-template-columns:1fr;} .boss-head h2{font-size:28px;} .layout{grid-template-columns:1fr;} .sidebar{position:static; max-height:none; margin-bottom:8px;} }
@@ -1045,8 +1051,10 @@ function render(){
   const tagsHtml=tags.length?'<div class="ability-tags">'+tags.map(t=>'<span class="tag">'+escapeHtml(t)+'</span>').join("")+'</div>':"";
   const images=(Array.isArray(ability.images)?ability.images:[]).filter(u=>/^https?:\/\//i.test(u));
   const imagesHtml=images.length?'<div class="ability-images">'+images.map(u=>'<a href="'+escapeHtml(u)+'" target="_blank" rel="noopener"><img src="'+escapeHtml(u)+'" alt="Raid planning image" loading="lazy"></a>').join("")+'</div>':"";
+  const spellIconHtml=(ability.spellIcon&&/^https?:\/\//i.test(ability.spellIcon))?'<img class="ability-spell-icon" src="'+escapeHtml(ability.spellIcon)+'" alt="" loading="lazy">':"";
+  const wowheadHtml=ability.spellId?'<a class="wowhead-link" href="https://www.wowhead.com/spell='+encodeURIComponent(ability.spellId)+'" target="_blank" rel="noopener">View on Wowhead ↗</a>':"";
   $("#infoSlot").innerHTML =
-    '<div class="ability-title">'+escapeHtml(ability.name||"")+' <span>&middot; '+occLabel+countLabel+'</span></div>'+
+    '<div class="ability-title">'+spellIconHtml+escapeHtml(ability.name||"")+' <span>&middot; '+occLabel+countLabel+'</span>'+wowheadHtml+'</div>'+
     tagsHtml+
     '<p class="ability-desc">'+escapeHtml(ability.desc||"")+'</p>'+
     imagesHtml+
@@ -1166,7 +1174,9 @@ function abilOptionalFieldHtml(key,a,r,b,ai,D,boss){
 function abilBodyInnerHtml(a,r,b,ai){
   const D='data-r="'+r+'" data-b="'+b+'" data-a="'+ai+'"';
   const boss=editData[r].bosses[b];
-  let html='<div class="roles-grid">'+
+  const spellIconHtml=a.spellIcon?'<img class="spell-lookup-icon" src="'+escapeHtml(a.spellIcon)+'" alt="">':'';
+  let html=field("Spell ID (Blizzard)",'<div class="spell-lookup">'+spellIconHtml+'<input '+D+' data-k="spellId" value="'+escapeHtml(a.spellId!=null?a.spellId:"")+'" placeholder="e.g. 1234567"><button class="btn" data-action="spelllookup" '+D+'>Look up</button></div><div class="det" id="spellstatus_'+r+'_'+b+'_'+ai+'">Auto-fills name, description &amp; icon from Blizzard. Live content only — PTR/unreleased spells aren’t available.</div>',"Optional. Enter a spell ID and click Look up to pull the spell’s name, tooltip, and icon straight from Blizzard.")+
+    '<div class="roles-grid">'+
     field("Name",'<input '+D+' data-k="name" value="'+escapeHtml(a.name||"")+'" placeholder="Ability name">')+
     field("Times",'<input '+D+' data-k="times" value="'+escapeHtml(abilTimesValue(a))+'" placeholder="mm:ss, comma-separated">',"Format: mm:ss, comma-separated. One ability can hit multiple times.")+
     field("Duration",'<input '+D+' data-k="duration" value="'+(a.duration!=null?a.duration:"")+'" placeholder="seconds">',"Optional, in seconds.")+
@@ -1384,6 +1394,30 @@ overlay.addEventListener("click",function(e){
     // re-render just this ability's body so its <details> stays open
     const c=document.getElementById("abilbody_"+r+"_"+b+"_"+ai);
     if(c){ c.innerHTML=abilBodyInnerHtml(ab,r,b,ai); const el=c.querySelector('[data-k="'+fkey+'"]'); if(el&&el.focus) el.focus(); }
+  }
+  else if(act==="spelllookup"){
+    const r=Number(btn.dataset.r), b=Number(btn.dataset.b), ai=Number(btn.dataset.a);
+    const ab=editData[r].bosses[b].abilities[ai];
+    const status=document.getElementById("spellstatus_"+r+"_"+b+"_"+ai);
+    const inp=document.querySelector('#abilbody_'+r+'_'+b+'_'+ai+' [data-k="spellId"]');
+    const spellId=((inp?inp.value:ab.spellId)||"").toString().trim();
+    if(!/^\d+$/.test(spellId)){ if(status) status.textContent="Enter a numeric spell ID first."; return; }
+    btn.disabled=true; const orig=btn.textContent; btn.textContent="Looking up…";
+    fetch("/api/spell/"+encodeURIComponent(spellId),{credentials:"same-origin"})
+      .then(res=>res.json().then(j=>({ok:res.ok,j})))
+      .then(({ok,j})=>{
+        if(!ok){ if(status) status.textContent=(j&&j.error)||"Lookup failed."; btn.disabled=false; btn.textContent=orig; return; }
+        ab.spellId=Number(spellId);
+        if(j.name) ab.name=j.name;
+        if(j.icon) ab.spellIcon=j.icon;
+        if(j.description){ ab.desc=j.description; (revealedAbilFields[ab.id]=revealedAbilFields[ab.id]||new Set()).add("desc"); }
+        // re-render the ability body to reflect the filled-in fields
+        const c=document.getElementById("abilbody_"+r+"_"+b+"_"+ai);
+        if(c) c.innerHTML=abilBodyInnerHtml(ab,r,b,ai);
+        const st=document.getElementById("spellstatus_"+r+"_"+b+"_"+ai);
+        if(st) st.textContent="Filled from “"+(j.name||spellId)+"”"+(j.description?"":" (no tooltip text available for this spell)");
+      })
+      .catch(()=>{ if(status) status.textContent="Lookup failed — network error."; btn.disabled=false; btn.textContent=orig; });
   }
   else if(act==="uploadgif"){
     const r=Number(btn.dataset.r), bi=Number(btn.dataset.b), ai=Number(btn.dataset.a);
